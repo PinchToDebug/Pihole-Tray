@@ -16,16 +16,18 @@
 ![1](Screenshots/1.jpg)
 ![2](Screenshots/2.jpg)
 ![3](Screenshots/3.jpg)
+## ⚠️ Disclaimer
+
+This project is not affiliated with the Pi-hole project or its developers. This tool is a third-party application developed independently.
 
 ## 🤝 Contributing
 Contributions are welcome! If you have an idea for a feature or find a bug, please open an issue or submit a pull request!
+
+## 📝 Important
+The project is under development and could havebugs.
 
 ## 📜 License
 
 This project is licensed under the MIT License.
 
 The project is built using [WPF UI](https://github.com/lepoco/wpfui), which is licensed under the [MIT License](https://github.com/lepoco/wpfui/blob/main/LICENSE).
-
-## ⚠️ Disclaimer
-
-This project is not affiliated with the Pi-hole project or its developers. This tool is a third-party application developed independently.
