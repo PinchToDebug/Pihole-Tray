@@ -1,4 +1,4 @@
-# Unofficial Pi-hole tray monitor for Windows
+# Unofficial Pi-hole [V5] tray monitor for Windows
 **Pihole Tray** is a system tray application for Windows that allows you to manage your Pi-hole instance(s) directly from your desktop. Easily toggle blocking and check statistics without needing to access the web interface.
 
 ## ✨ Features
