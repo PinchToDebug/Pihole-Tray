@@ -13,9 +13,12 @@
 
 ## Screenshots
 
-![1](Screenshots/1.jpg)
-![2](Screenshots/2.jpg)
-![3](Screenshots/3.jpg)
+<div style="display: flex;">
+ <img src="Screenshots/1.jpg" height="500">
+<img src="Screenshots/2.jpg" height="500">
+<img src="Screenshots/3.jpg">
+</div>
+
 ## ⚠️ Disclaimer
 
 This project is not affiliated with the Pi-hole project or its developers. This tool is a third-party application developed independently.
