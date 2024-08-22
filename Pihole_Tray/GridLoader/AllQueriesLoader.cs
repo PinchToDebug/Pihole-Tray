@@ -6,13 +6,10 @@ public class AllQueriesType
 {
     public string Time { get; set; }
     public string DomainName { get; set; }
-
 }
 
 public class AllQueriesLoader
-{
-
-  
+{  
     public async Task LoadAsync(ItemsControl itemsControl, JArray arr)
     {
         await Task.Run(() =>
@@ -21,7 +18,7 @@ public class AllQueriesLoader
 
             foreach (var item in arr)
             {
-                if (item[4].ToString() != "1" && item[4].ToString() != "4") continue; // skipping if not blocked
+                if (item[4].ToString() != "1" && item[4].ToString() != "4") continue; // Skipping if not blocked
                 var time = DateTimeOffset.FromUnixTimeSeconds((long)item[0]).ToLocalTime().ToString("HH:mm:ss");
                 var domainName = item[2].ToString();
 
@@ -36,12 +33,8 @@ public class AllQueriesLoader
             Application.Current.Dispatcher.Invoke(() =>
             {
                 itemsControl.ItemsSource = items;
-
             });
-
 
         });
     }
 }
-
-
