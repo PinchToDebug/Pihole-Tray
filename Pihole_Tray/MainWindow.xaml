@@ -1,0 +1,265 @@
+﻿<ui:FluentWindow x:Name="fluentWindow" x:Class="Pihole_Tray.MainWindow"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:tray="http://schemas.lepo.co/wpfui/2022/xaml/tray"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Pihole_Tray"
+        mc:Ignorable="d"
+        ShowInTaskbar="False"
+       SourceInitialized="fluentWindow_SourceInitialized"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Acrylic"
+        AllowsTransparency="True"
+                 MaxWidth="350" 
+                 MinWidth="350"
+                 Width="350"
+                 MinHeight="10"
+                 ResizeMode="NoResize" 
+                 WindowStyle="None" 
+                 UseLayoutRounding="True" Loaded="fluentWindow_Loaded" Background="#B2101010" >
+   
+
+
+    <!--Background="#FF404040"-->
+    <!--Background="#B2101010"-->
+
+
+    <Grid  Name="MainGrid" >
+       
+        <Grid Name="ContentGrid" Margin="16,16,16,16" >
+            <StackPanel Name="Info_StackPanel" Visibility="Visible" d:IsHidden="True" >
+
+                <ui:Card  Name="Basic1" Margin="0,0,0,10" VerticalAlignment="Top" Padding="14,5,14,7">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+
+                            <RowDefinition Height="22"/>
+                            <RowDefinition Height="22"/>
+                            <RowDefinition Height="22" />
+
+
+                        </Grid.RowDefinitions>
+                        <ui:TextBlock Text="Home PI:"     Name="CurrentNameTB"  Grid.Column="0" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Cursor="Hand" MouseLeftButtonUp="Instance_MouseLeftButtonUp"/>
+                        <TextBlock Text="Domains Blocked:" Grid.Column="0" Grid.Row="1" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                        <TextBlock Text="Gravity updated:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
+
+
+                        <TextBlock Name="StatusTB" Text="-" MouseLeftButtonUp="StatusTB_MouseLeftButtonUp" Grid.Column="1" Grid.Row="0" Height="20"  Padding="7,0,0,0"  Cursor="Hand" HorizontalAlignment="Right" Margin="0,0,0,0" FontWeight="SemiBold"/>
+
+
+                        <TextBlock Name="DomainsBlockedTB" Text="-" Grid.Column="1" Grid.Row="1" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#FFFF6E6E"/>
+                        <TextBlock Name="GravityTB" Text="-" Grid.Column="1" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+
+
+                
+
+                    </Grid>
+                </ui:Card>
+                <ui:Card   Name="Basic2" Margin="0,0,0,0"  VerticalAlignment="Top"  Padding="14,5,14,7">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+
+                            <RowDefinition Height="22"/>
+                            <RowDefinition Height="22"/>
+
+
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="DNS Queries:"       Grid.Column="0" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Ads Blocked:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
+
+                        <TextBlock Name="DnsQueryTB" Text="-" Grid.Column="1" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"  Foreground="#FFABA4FF"/>
+                        <TextBlock Name="AdsBlockedTB" Text="-" Grid.Column="1" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,4,0,0" Foreground="#FFFFA4A4"/>
+
+
+
+                    </Grid>
+                </ui:Card>
+                <Label Content="Recent Blocks" 
+                       Name="RecentBlockLBL"
+                       HorizontalAlignment="Center"
+                       Margin="0,10,0,5"
+                      />
+
+                <ui:Card x:Name="BlockHistoryCard" 
+                         Margin="0,0,0,0" 
+                         Padding="14,0,0,0"  
+                         VerticalAlignment="Top" 
+                         Height="161"
+                         
+                         MouseEnter="OnMouseEnterBlockHistoryCard"
+                         MouseLeave="OnMouseLeaveBlockHistoryCard" 
+                         >
+                    
+                    <!--Height="690"-->
+                    <ScrollViewer Name="BlockHistorySV"
+                                  VerticalScrollBarVisibility="Hidden"
+                                  MinHeight="1080"
+                                  Padding="0,5,16,8"
+                                  Margin="0,5,0,0">
+                        <ItemsControl Name="BlockHistoryItemsControl">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="18"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="{Binding Time}"    FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Left" MinWidth="120"/>
+                                        <TextBlock Text="{Binding DomainName}"   FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Right" Foreground="#FFFFB4B4"/>
+                                        <Rectangle Height="1" Fill="#20FFFFFF" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="0,0,0,-1.5" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    
+                </ui:Card>
+
+
+
+
+                <Label Content="Sources"  Name="SourcesLBL"  HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,0,5"/>
+                <ui:Card Name="SourcesCard" Margin="0,0,0,0"  Padding="14,5,14,7"  VerticalAlignment="Top" >
+                    <ItemsControl Name="SourcesItemsControl">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Name="SourcesGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="auto" MinWidth="150" />
+                                        <ColumnDefinition />
+                                        <ColumnDefinition Width="55"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="22"/>
+
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="{Binding Device}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"  Grid.Column="0"/>
+                                    <TextBlock Text="{Binding IPAddress}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="#FFDDE1FB" Grid.Column="1"/>
+                                    <TextBlock Text="{Binding RequestCount}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#FFBBC4F7" Grid.Column="2" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ui:Card>
+
+                <Label Content="DNS Routes" Name="DNSRoutesLBL" HorizontalAlignment="Center"  Margin="0,10,0,5"/>
+                
+                    
+                    <ui:Card Name="DnsRoutesCard" Margin="0,0,0,0"   Padding="14,5,14,7"  VerticalAlignment="Top">
+                    <Grid Name="DnsRoutesGrid">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+
+                        </Grid.RowDefinitions>
+
+
+
+                    </Grid>
+                </ui:Card>
+
+                <Label Content="Forward Destinations"   Name ="QueryLBL" HorizontalAlignment="Center" Margin="0,10,0,5"/>
+
+                <ui:Card x:Name="QueryCard"  Margin="0,0,0,0" VerticalAlignment="Top" Padding="14,5,14,7">
+                    <Grid x:Name="QueryTypesGrid" >
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+
+
+                    </Grid>
+                </ui:Card>
+               
+
+            </StackPanel>
+
+            <StackPanel x:Name="Default_StackPanel"   Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" >
+                <Button Content="Back" Name="BackButton" HorizontalAlignment="Right" Visibility="Hidden" Click="BackButton_Click"/>
+
+                <TextBlock  Text="Give it a name:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5" HorizontalAlignment="Left"  />
+                <TextBox Name="NameTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"/>
+
+                <TextBlock  Text="API address:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                <ui:TextBox Name="AddressTB" Margin="10,0,10,10"  PlaceholderText="http://pi.hole/admin/api.php" HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"/>
+
+
+                <TextBlock  Text="API key"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                <TextBox Name="ApiTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270" Height="60" TextWrapping="Wrap" FontSize="13"/>
+                <ui:HyperlinkButton NavigateUri="http://pi.hole/admin/settings.php?tab=api"  Content="http://pi.hole/admin/settings.php?tab=api" HorizontalAlignment="Center" />
+                <ui:ToggleSwitch Name="setDefaultTS"  Visibility="Collapsed" Content="Use as default view on login" HorizontalAlignment="Center" Padding="20,10,20,10"    Margin="0,17,0,0"  />
+
+                <Button Name="ApiSaveBTN" Content="Save and use API key" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Click="ApiSaveBTN_Click" Margin="0,17,0,0"  />
+                <ui:DropDownButton Name="SelectOtherInstanceBTN" Content="Select other" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Margin="0,17,0,0" Click="SelectOtherInstnaceBTN_Click">
+                    <ui:DropDownButton.Flyout >
+                        <ContextMenu Name="OtherInstanceContextMenu">
+                        </ContextMenu>
+                    </ui:DropDownButton.Flyout>
+                </ui:DropDownButton>
+
+                <!--Visibility="Hidden"-->
+                <Button Name="LoginBTN"  Content="Try to log in again" HorizontalAlignment="Center" Padding="20,10,20,10" Width="175" Background="#B224AF18" Margin="0,19,0,0" Click="LoginBTN_Click"  />
+
+            </StackPanel>
+
+        </Grid>
+
+
+        
+        <Grid  Name="LostConnectionGrid" Visibility="Hidden">
+            <StackPanel Name="ds2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ui:ProgressRing IsIndeterminate="True"/>
+                <TextBlock  FontSize="16" Text="lost connection, trying to reconnect" Margin="0,6,0,0" FontWeight="SemiBold"/>
+            </StackPanel>
+        </Grid>
+
+
+        <tray:NotifyIcon Name="trayIcon"  LeftClick="NotifyIcon_LeftClick" d:IsHidden="True" TooltipText="Pi-hole Tray"  >
+
+            <tray:NotifyIcon.Menu >
+                <ContextMenu MinWidth="60" >
+                    <ui:MenuItem x:Name="Autorun_Button" Header="Start on login" IsCheckable="True" Checked="Autorun_Checked"  Unchecked="Autorun_Checked"  />
+
+                    <ui:MenuItem x:Name="OpenInBrowser_Button" Height="33" Icon="{ui:SymbolIcon Symbol=Link28}" Header="http://pi.hole" Foreground="#FF549CE4" Click="OpenInBrowser_Button_Click" />
+
+                    <ui:MenuItem  Height="38" Header="Background"  Icon="{ui:SymbolIcon Symbol=ColorBackground20}" >
+                        <ui:ToggleSwitch Name="MicaBG"  Content="Mica effect"   IsChecked="False"  Click="ChangeBackground_Click"/>
+                        <ui:ToggleSwitch Name="AcrylicBG"  Content="Acrylic effect"  IsChecked="False" Click="ChangeBackground_Click" />
+                        <ui:ToggleSwitch Name="NoneBG" Content="No effect"  IsChecked="False" Click="ChangeBackground_Click" />
+                    </ui:MenuItem>
+
+
+                    <ui:MenuItem x:Name="Autorunh_Button" Height="38" Header="Elements"  Icon="{ui:SymbolIcon Symbol=TextBulletListLtr20}" >
+                        <ui:ToggleSwitch Name="RecentBlocksTS"  Content="Recent Blocks"   IsChecked="true" Click="RecentBlocksTS_Click" />
+                        <ui:ToggleSwitch Name="SourcesTS"  Content="Sources"  IsChecked="true" Click="SourcesTS_Click"  />
+                        <ui:ToggleSwitch Name="DNSRoutesTS" Content="DNS Routes"  IsChecked="true" Click="DNSRoutesTS_Click"/>
+                        <ui:ToggleSwitch Name="QueryTS" Content="Query Types"  IsChecked="true" Click="QueryTS_Click"/>
+                    </ui:MenuItem>
+                    <ui:MenuItem x:Name="Pin_Button" Height="33" Icon="{ui:SymbolIcon Symbol=Pin20}" Header="Pin program" Click="PinApp" FontSize="16" VerticalAlignment="Center"/>
+
+
+                    <Separator Margin="0,3,0,3"/>
+                    <ui:MenuItem x:Name="Exit_Button" Height="33" Icon="{ui:SymbolIcon Symbol=ArrowExit20}" VerticalContentAlignment="Center"  Header="Exit" Click="ExitApp" FontSize="16" MouseEnter="Exit_Button_MouseEnter" MouseLeave="Exit_Button_MouseLeave"/>
+
+                </ContextMenu>
+            </tray:NotifyIcon.Menu>
+        </tray:NotifyIcon>
+        <ContentPresenter x:Name="RootContentDialogPresenter" d:IsHidden="True" />
+
+
+
+
+    </Grid >
+</ui:FluentWindow>
