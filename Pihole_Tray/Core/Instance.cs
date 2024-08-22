@@ -28,10 +28,8 @@ public class Instance {
     public async Task<int> Status()
     {
        // await Task.Delay(1000);
-        Debug.WriteLine("status checking");
+        Debug.WriteLine("Status checking");
         Debug.WriteLine(Address);
-
-        // Ensure httpClient.Timeout is set appropriately
 
 
         try
@@ -116,26 +114,15 @@ public class InstanceStorage {
     }
     public Instance? DefaultInstance()
     {
-
-        foreach (var instance in Instances)
-        {
-            string isDefault = instance.IsDefault.ToString();
-            if (bool.TryParse(isDefault, out bool value))
-            {
-             //   Debug.WriteLine($"found default instance: {instance.Name}");
-               // return instance;
-            }
-        }
         foreach (var instance in Instances)
         {
             if ((bool)instance.IsDefault == true)
             {
-                Debug.WriteLine($"found default instance: {instance.Name}");
-
+                Debug.WriteLine($"Found default instance: {instance.Name}");
                 return instance;
             }
         }
-        Debug.WriteLine("no default instance");
+        Debug.WriteLine("There's no default instance");
         return null;
     }
 
@@ -157,9 +144,7 @@ public class InstanceStorage {
                         Debug.WriteLine($"subkeyname: {item}");
                     }
                    
-                    
-                    
-                    
+
                     foreach (string instance in instanceNames) 
                     {
                        
@@ -231,20 +216,4 @@ public class InstanceStorage {
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
-
