@@ -27,7 +27,8 @@ This project is not affiliated with the Pi-hole project or its developers. This 
 Contributions are welcome! If you have an idea for a feature or find a bug, please open an issue or submit a pull request!
 
 ## 📝 Important
-The project is under development and could havebugs.
+The project is under development and could have bugs.
+To remove an instance go to Computer\HKEY_CURRENT_USER\Software\Pihole_Tray in the Registry Editor and delete the instance (this will change in the future).
 
 ## 📜 License
 
