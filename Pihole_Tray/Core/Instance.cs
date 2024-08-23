@@ -6,10 +6,12 @@ using System.Net.Http;
 using System.Net.NetworkInformation;
 
 public class Instance {
+
     private readonly HttpClient httpClient = new HttpClient
     {
         Timeout = TimeSpan.FromMilliseconds(400)
     };
+
     private dynamic statusCheck = new ExpandoObject();
     public  string? API_KEY { get; set; }
     public  string? Name { get; set; }
