@@ -6,7 +6,6 @@ public class AllQueriesType
 {
     public string Time { get; set; }
     public string DomainName { get; set; }
-
 }
 
 public class AllQueriesLoader
@@ -65,5 +64,3 @@ public class AllQueriesLoader
         });
     }
 }
-
-
