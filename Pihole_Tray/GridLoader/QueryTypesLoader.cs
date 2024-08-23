@@ -18,7 +18,17 @@ public class QueryTypesLoader
         var newData = new Dictionary<string, string>();
         var existingRows = new Dictionary<int, (string type, string percentage)>();
         var elementsToUpdate = new Dictionary<int, string>();
+        if (obj == null)
+        {
+            grid.Children.Clear();
+            grid.RowDefinitions.Clear();
+            grid.Children.Add(new TextBlock { Text = "Object is null" });
+            return;
+        }
+        try
+        {
 
+       
         await Task.Run(() =>
         {
             foreach (var item in obj)
@@ -36,7 +46,6 @@ public class QueryTypesLoader
 
             }
         });
-
 
 
         for (int i = 0; i < grid.RowDefinitions.Count; i++)
@@ -221,7 +230,14 @@ public class QueryTypesLoader
                 grid.Children.Remove(element);
             }
         }
-
+        }
+        catch (Exception e)
+        {
+            grid.Children.Clear();
+            grid.RowDefinitions.Clear();
+            grid.Children.Add(new TextBlock { Text = e.Message });
+            return;
+        }
 
         double MeasureTextWidth(string text, TextBlock textBlock)
         {
@@ -237,9 +253,6 @@ public class QueryTypesLoader
 
             return formattedText.WidthIncludingTrailingWhitespace;
         }
-
-
-
 
     }
 

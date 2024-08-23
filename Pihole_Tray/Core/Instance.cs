@@ -14,7 +14,7 @@ using Wpf.Ui.Controls;
 public class Instance {
     private readonly HttpClient httpClient = new HttpClient
     {
-        Timeout = TimeSpan.FromMilliseconds(300)
+        Timeout = TimeSpan.FromMilliseconds(400)
     };
     private dynamic statusCheck = new ExpandoObject();
     public  string? API_KEY { get; set; }

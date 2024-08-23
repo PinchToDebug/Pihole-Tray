@@ -15,25 +15,51 @@ public class QuerySourcesLoader
     {
         var items = new List<QuerySourcesType>();
 
-
-        foreach (var item in obj)
+        try
         {
-            var _ = item.Key.ToString().Split('|');
+            foreach (var item in obj)
+            {
+                var _ = item.Key.ToString().Split('|');
 
 
+                items.Add(new QuerySourcesType
+                {
+                    Device = _[0],
+                    IPAddress = _[1],
+                    RequestCount = item.Value.ToString()
+                });
+
+            }
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                itemsControl.ItemsSource = items;
+            });
+        }
+        catch (NullReferenceException) 
+        {
             items.Add(new QuerySourcesType
             {
-                Device = _[0],
-                IPAddress = _[1],
-                RequestCount = item.Value.ToString()
+                Device = "Object is null"
             });
-
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                itemsControl.ItemsSource = items;
+            });
         }
-        Application.Current.Dispatcher.Invoke(() =>
+        catch (Exception e)
         {
-            itemsControl.ItemsSource = items;
-        });
+            items.Add(new QuerySourcesType
+            {
+                Device = e.Message
+            });
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                itemsControl.ItemsSource = items;
+            });
+        }
+
     }
+
 
 }
 

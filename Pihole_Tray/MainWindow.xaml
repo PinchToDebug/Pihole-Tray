@@ -26,10 +26,10 @@
     <!--Background="#B2101010"-->
 
 
-    <Grid  Name="MainGrid" >
+    <Grid  Name="MainGrid" Background="#B2101010">
        
         <Grid Name="ContentGrid" Margin="16,16,16,16" >
-            <StackPanel Name="Info_StackPanel" Visibility="Visible" d:IsHidden="True" >
+            <StackPanel Name="Info_StackPanel" Visibility="Visible" >
 
                 <ui:Card  Name="Basic1" Margin="0,0,0,10" VerticalAlignment="Top" Padding="14,5,14,7">
                     <Grid>
@@ -151,11 +151,11 @@
                     </ItemsControl>
                 </ui:Card>
 
-                <Label Content="DNS Routes" Name="DNSRoutesLBL" HorizontalAlignment="Center"  Margin="0,10,0,5"/>
-                
-                    
-                    <ui:Card Name="DnsRoutesCard" Margin="0,0,0,0"   Padding="14,5,14,7"  VerticalAlignment="Top">
-                    <Grid Name="DnsRoutesGrid">
+                <Label Content="DNS Routes" Name="ForwardDestinationsLBL" HorizontalAlignment="Center"  Margin="0,10,0,5"/>
+
+
+                <ui:Card Name="ForwardDestinationsCard" Margin="0,0,0,0"   Padding="14,5,14,7"  VerticalAlignment="Top">
+                    <Grid Name="ForwardDestinationsGrid">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
                             <ColumnDefinition Width="auto"/>
@@ -169,7 +169,7 @@
                     </Grid>
                 </ui:Card>
 
-                <Label Content="Forward Destinations"   Name ="QueryLBL" HorizontalAlignment="Center" Margin="0,10,0,5"/>
+                <Label Content="Query Types"   Name ="QueryLBL" HorizontalAlignment="Center" Margin="0,10,0,5"/>
 
                 <ui:Card x:Name="QueryCard"  Margin="0,0,0,0" VerticalAlignment="Top" Padding="14,5,14,7">
                     <Grid x:Name="QueryTypesGrid" >
@@ -202,7 +202,7 @@
                 <ui:ToggleSwitch Name="setDefaultTS"  Visibility="Collapsed" Content="Use as default view on login" HorizontalAlignment="Center" Padding="20,10,20,10"    Margin="0,17,0,0"  />
 
                 <Button Name="ApiSaveBTN" Content="Save and use API key" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Click="ApiSaveBTN_Click" Margin="0,17,0,0"  />
-                <ui:DropDownButton Name="SelectOtherInstanceBTN" Content="Select other" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Margin="0,17,0,0" Click="SelectOtherInstnaceBTN_Click">
+                <ui:DropDownButton Name="SelectOtherInstanceBTN" Visibility="Collapsed" Content="Select other" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Margin="0,17,0,0" Click="SelectOtherInstnaceBTN_Click">
                     <ui:DropDownButton.Flyout >
                         <ContextMenu Name="OtherInstanceContextMenu">
                         </ContextMenu>
@@ -210,7 +210,7 @@
                 </ui:DropDownButton>
 
                 <!--Visibility="Hidden"-->
-                <Button Name="LoginBTN"  Content="Try to log in again" HorizontalAlignment="Center" Padding="20,10,20,10" Width="175" Background="#B224AF18" Margin="0,19,0,0" Click="LoginBTN_Click"  />
+                <Button Name="LoginBTN"  Content="Try to log in again" HorizontalAlignment="Center" Visibility="Collapsed" Padding="20,10,20,10" Width="175" Background="#B224AF18" Margin="0,19,0,0" Click="LoginBTN_Click"  />
 
             </StackPanel>
 
@@ -219,9 +219,9 @@
 
         
         <Grid  Name="LostConnectionGrid" Visibility="Hidden">
-            <StackPanel Name="ds2" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <ui:ProgressRing IsIndeterminate="True"/>
-                <TextBlock  FontSize="16" Text="lost connection, trying to reconnect" Margin="0,6,0,0" FontWeight="SemiBold"/>
+                <TextBlock  Name="LostConnectionTB" FontSize="16" MaxWidth="300" Text="lost connection, trying to reconnect" Margin="0,6,0,0" FontWeight="SemiBold" TextWrapping="Wrap"/>
             </StackPanel>
         </Grid>
 
@@ -244,7 +244,7 @@
                     <ui:MenuItem x:Name="Autorunh_Button" Height="38" Header="Elements"  Icon="{ui:SymbolIcon Symbol=TextBulletListLtr20}" >
                         <ui:ToggleSwitch Name="RecentBlocksTS"  Content="Recent Blocks"   IsChecked="true" Click="RecentBlocksTS_Click" />
                         <ui:ToggleSwitch Name="SourcesTS"  Content="Sources"  IsChecked="true" Click="SourcesTS_Click"  />
-                        <ui:ToggleSwitch Name="DNSRoutesTS" Content="DNS Routes"  IsChecked="true" Click="DNSRoutesTS_Click"/>
+                        <ui:ToggleSwitch Name="ForwardDestinationsTS" Content="Query Routes"  IsChecked="true" Click="ForwardDestinationsTS_Click"/>
                         <ui:ToggleSwitch Name="QueryTS" Content="Query Types"  IsChecked="true" Click="QueryTS_Click"/>
                     </ui:MenuItem>
                     <ui:MenuItem x:Name="Pin_Button" Height="33" Icon="{ui:SymbolIcon Symbol=Pin20}" Header="Pin program" Click="PinApp" FontSize="16" VerticalAlignment="Center"/>

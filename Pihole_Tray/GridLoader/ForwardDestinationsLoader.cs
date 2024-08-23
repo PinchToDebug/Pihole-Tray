@@ -11,12 +11,21 @@ public class ForwardDestinationsLoader
 {
     public async Task LoadAsync(Grid grid, JObject obj)
     {
-
+        if (obj == null)
+        {
+            grid.Children.Clear();
+            grid.Children.Add(new TextBlock { Text = "Object is null" });
+            return;
+        }
         BrushConverter brushConverter = new BrushConverter();
         var newData = new Dictionary<string, string>();
         var existingRows = new Dictionary<int, (string type, string percentage)>();
         var elementsToUpdate = new Dictionary<int, string>();
 
+        try
+        {
+
+       
         await Task.Run(() =>
         {
             foreach (var item in obj)
@@ -197,6 +206,15 @@ public class ForwardDestinationsLoader
                 grid.Children.Remove(element);
             }
         }
+        }
+        catch (Exception e)
+        {
+            grid.Children.Clear();
+            grid.RowDefinitions.Clear();
+            grid.Children.Add(new TextBlock { Text = e.Message });
+            return;
+        }
+
 
         double MeasureTextWidth(string text, TextBlock textBlock)
         {

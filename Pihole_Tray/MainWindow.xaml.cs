@@ -7,8 +7,10 @@ using System.Diagnostics;
 using System.Dynamic;
 using System.Net.Http;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -130,7 +132,7 @@ namespace Pihole_Tray
             if (KeyExistsRoot("RecentBlocksTS")) RecentBlocksTS.IsChecked = (bool)ReadKeyValueRoot("RecentBlocksTS"); HideShowElementPairs(RecentBlockLBL, BlockHistoryCard, RecentBlocksTS);
             if (KeyExistsRoot("QueryTS")) QueryTS.IsChecked = (bool)ReadKeyValueRoot("QueryTS"); HideShowElementPairs(QueryLBL, QueryCard, QueryTS); Debug.WriteLine(" ");
             if (KeyExistsRoot("SourcesTS")) SourcesTS.IsChecked = (bool)ReadKeyValueRoot("SourcesTS"); HideShowElementPairs(SourcesLBL, SourcesCard, SourcesTS);
-            if (KeyExistsRoot("DNSRoutesTS")) DNSRoutesTS.IsChecked = (bool)ReadKeyValueRoot("DNSRoutesTS"); HideShowElementPairs(DNSRoutesLBL, DnsRoutesCard, DNSRoutesTS);
+            if (KeyExistsRoot("ForwardDestinationsTS")) ForwardDestinationsTS.IsChecked = (bool)ReadKeyValueRoot("ForwardDestinationsTS"); HideShowElementPairs(ForwardDestinationsLBL, ForwardDestinationsCard, ForwardDestinationsTS);
             if (KeyExistsRoot("Background"))
             {
                 switch ((string)ReadKeyValueRoot("Background"))
@@ -198,7 +200,6 @@ namespace Pihole_Tray
                 {
                     cancelToken.Cancel();
                     ClearElements();
-
                 }
                 cancelToken = new CancellationTokenSource();
                 selectedInstance = storage.DefaultInstance();
@@ -282,41 +283,37 @@ namespace Pihole_Tray
                 if (coldRun) this.Top = (int)SystemParameters.PrimaryScreenHeight;
 
                 selectedInstance = instance;
-                if (coldRun)
-                {
-                    storage.WriteInstanceToKey(instance);
-                    //writeOnce = false;
-                }
+               
                 if (!string.IsNullOrEmpty(ApiTB.Text))
                 {
                     Debug.WriteLine("using key from TB");
-
-                    API_KEY = ApiTB.Text;
                     //  WriteToRegistry("startOnLogin", Autorun_Button.IsChecked);
                 }
 
-                //   bool success = false;
                 var contentDialog = new ContentDialog(RootContentDialogPresenter);
 
                 try
                 {
 
-                    //Debug.WriteLine($"this is address2: {new Uri(instance.Address).Host}");
-
                     Debug.WriteLine($"this is address1: {instance.Address}");
                     bool pingFailed = false;
                     try
                     {
-                        // DnsQueryTB.Text = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(apiUrl + "?summary&auth=" + API_KEY)).dns_queries_all_types;
+                        Debug.WriteLine(instance.Address);
+                        Debug.WriteLine(new Uri(instance.Address).AbsoluteUri);
+                        Debug.WriteLine(new Uri(instance.Address).Host);
+                        Debug.WriteLine(new Uri(instance.Address).AbsolutePath);
+                        Debug.WriteLine(new Uri(instance.Address).DnsSafeHost);
                         dynamic _ = new ExpandoObject();
+
                         _ = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?summary&auth=" + instance.API_KEY))!;
+
                         DnsQueryTB.Text = DnsQueryTB.Text = _.dns_queries_all_types;
 
                     }
                     catch (Exception ex)
                     {
-                        // ApiTB.Text = "";
-                        Debug.WriteLine("ERR here: " + ex.Message);
+                        Debug.WriteLine("ERROR 1: " + ex.Message);
 
                         using (Ping ping = new Ping())
                         {
@@ -333,7 +330,7 @@ namespace Pihole_Tray
                             }
                             catch
                             {
-                                Debug.WriteLine("ERR here2: " + ex.Message);
+                                Debug.WriteLine("ERROR 2: " + ex.Message);
 
                                 pingFailed = true;
                                 contentDialog.SetCurrentValue(ContentDialog.TitleProperty, $"Couldn't reach host");
@@ -348,14 +345,14 @@ namespace Pihole_Tray
                         if (!pingFailed)
                         {
                             contentDialog.SetCurrentValue(ContentDialog.TitleProperty, "Error");
-                            contentDialog.SetCurrentValue(ContentControl.ContentProperty, "Invalid API key.");
+                            contentDialog.SetCurrentValue(ContentControl.ContentProperty, ex.Message);
                         }
 
                         Debug.WriteLine($"ERROR: {ex.Message}");
                         this.Top = (int)SystemParameters.WorkArea.Bottom - this.Height - 12;
-                        await contentDialog.ShowAsync();
+                       await contentDialog.ShowAsync();
 
-                        return;
+                       return;
                     }
 
 
@@ -369,7 +366,6 @@ namespace Pihole_Tray
 
                 Default_StackPanel.Visibility = Visibility.Hidden;
                 Info_StackPanel.Visibility = Visibility.Visible;
-                // WriteToRegistry("secKey", API_KEY,instance);
                 Debug.WriteLine("Connected successfully!");
 
 
@@ -380,13 +376,14 @@ namespace Pihole_Tray
                 dynamic getQueryTypes = new ExpandoObject();
 
 
-
+                if (coldRun)
+                {
+                    storage.WriteInstanceToKey(instance);
+                    writeOnce = false;
+                }
 
                 bool showEffect = true;
                 bool blurCard = true;
-                //int rowIndex = 0;
-                //int counter = 0;
-                // 
 
 
                 while (true)
@@ -420,49 +417,52 @@ namespace Pihole_Tray
 
                         continue;
                     }
-
+                    if (coldRun)
+                    {
+                        this.Visibility = Visibility.Hidden;
+                    }
 
                     try
                     {
-
+                        await Task.Delay(50);
                         summary = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?summary&auth=" + instance.API_KEY))!;
-
+                        await Task.Delay(50);
                         if ((bool)RecentBlocksTS.IsChecked!)
                         {
                             getAllQueries = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getAllQueries=250&auth=" + instance.API_KEY))!;
                             var queriesData = (JArray)getAllQueries.data;
                             queries_data = new JArray(queriesData.Reverse());
+                            await Task.Delay(50);
                         }
                         if ((bool)SourcesTS.IsChecked!)
                         {
                             getQuerySources = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQuerySources&auth=" + instance.API_KEY))!;
                             topSources = (JObject)getQuerySources.top_sources;
+                            await Task.Delay(50);
 
                         }
-                        if ((bool)DNSRoutesTS.IsChecked!)
+                        if ((bool)ForwardDestinationsTS.IsChecked!)
                         {
                             getForwardDestinations = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getForwardDestinations&auth=" + instance.API_KEY))!;
                             forward_destinations = (JObject)getForwardDestinations.forward_destinations;
+                            await Task.Delay(50);
 
                         }
                         if ((bool)QueryTS.IsChecked!)
                         {
                             getQueryTypes = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQueryTypes&auth=" + instance.API_KEY))!;
                             querytypes = (JObject)getQueryTypes.querytypes;
+                            await Task.Delay(50);
                         }
 
                         DnsQueryTB.Text = summary.dns_queries_all_types;
-
-
-
 
                         ContentGrid.Effect = null;
                         showEffect = true;
                         LostConnectionGrid.Visibility = Visibility.Hidden;
                     }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine("ERR here3: " + ex.Message);
+                    catch (TaskCanceledException to) {
+                        Debug.WriteLine("ERROR 3: " + to.Message);
                         if (showEffect)
                         {
                             ContentGrid.Effect = new BlurEffect
@@ -473,6 +473,25 @@ namespace Pihole_Tray
                             };
                             showEffect = false;
                             LostConnectionGrid.Visibility = Visibility.Visible;
+                            LostConnectionTB.Text = "lost connection, trying to reconnect";
+                        }
+                        continue;
+
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine("ERROR 3: " + e.Message);
+                        if (showEffect)
+                        {
+                            ContentGrid.Effect = new BlurEffect
+                            {
+                                Radius = 20,
+                                RenderingBias = RenderingBias.Quality,
+                                KernelType = KernelType.Gaussian
+                            };
+                            showEffect = false;
+                            LostConnectionGrid.Visibility = Visibility.Visible;
+                            LostConnectionTB.Text = e.Message;
                         }
                         continue;
 
@@ -481,7 +500,7 @@ namespace Pihole_Tray
 
                     while (isAnimating)
                     {
-                        await Task.Delay(10, token);
+                        await Task.Delay(15, token);
                         continue;
                     }
 
@@ -498,9 +517,8 @@ namespace Pihole_Tray
 
                     if ((bool)RecentBlocksTS.IsChecked) await new AllQueriesLoader().LoadAsync(BlockHistoryItemsControl, queries_data);
                     if ((bool)SourcesTS.IsChecked) await new QuerySourcesLoader().LoadAsync(SourcesItemsControl, topSources);
-                    if ((bool)DNSRoutesTS.IsChecked) await new ForwardDestinationsLoader().LoadAsync(DnsRoutesGrid, forward_destinations);
+                    if ((bool)ForwardDestinationsTS.IsChecked) await new ForwardDestinationsLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations);
                     if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes);
-
                     if (writeOnce && !coldRun)
                     {
                         Debug.Write("WROTE ONCE");
@@ -547,12 +565,13 @@ namespace Pihole_Tray
                         else this.Top = (int)SystemParameters.WorkArea.Bottom - this.Height - 12;
                     }
 
-
+               
                     if (coldRun)
                     {
                         coldRun = false;
-                        this.Visibility = Visibility.Hidden;
-                        //  await Task.Delay(50, token);
+                        
+                       // this.Visibility = Visibility.Hidden;
+                         await Task.Delay(50, token);
                         continue;
                     }
                     await Task.Delay(1000, token);
@@ -1054,9 +1073,9 @@ namespace Pihole_Tray
             HideShowElementPairs(SourcesLBL, SourcesCard, SourcesTS);
 
         }
-        private void DNSRoutesTS_Click(object sender, RoutedEventArgs e)
+        private void ForwardDestinationsTS_Click(object sender, RoutedEventArgs e)
         {
-            HideShowElementPairs(DNSRoutesLBL, DnsRoutesCard, DNSRoutesTS);
+            HideShowElementPairs(ForwardDestinationsLBL, ForwardDestinationsCard, ForwardDestinationsTS);
 
 
         }
@@ -1155,8 +1174,9 @@ namespace Pihole_Tray
                 };
 
                 InstanceContextMenu.Items.Add(allView);
+                InstanceContextMenu.Items.Add(new Separator());
             }
-            InstanceContextMenu.Items.Add(new Separator());
+            
         Skip:
 
 
@@ -1208,8 +1228,11 @@ namespace Pihole_Tray
 
             };
             AddButton.Click += Addbutton_Click;
+            if (storage.Instances.Count >1)
+            {
+                InstanceContextMenu.Items.Add(new Separator());
 
-            InstanceContextMenu.Items.Add(new Separator());
+            }
             InstanceContextMenu.Items.Add(AddButton);
             InstanceContextMenu.IsOpen = true;
 
@@ -1275,8 +1298,8 @@ namespace Pihole_Tray
 
             BlockHistoryItemsControl.ItemsSource = null;
             SourcesItemsControl.ItemsSource = null;
-            DnsRoutesGrid.Children.Clear();
-            DnsRoutesGrid.RowDefinitions.Clear();
+            ForwardDestinationsGrid.Children.Clear();
+            ForwardDestinationsGrid.RowDefinitions.Clear();
             QueryTypesGrid.Children.Clear();
             QueryTypesGrid.RowDefinitions.Clear();
         }
@@ -1312,7 +1335,7 @@ namespace Pihole_Tray
         }
         private void Addbutton_Click(object sender, RoutedEventArgs e)
         {
-
+            LoginBTN.Visibility = Visibility.Collapsed;
             BackButton.Visibility = Visibility.Visible;
             Info_StackPanel.Visibility = Visibility.Hidden;
             Default_StackPanel.Visibility = Visibility.Visible;
@@ -1568,4 +1591,3 @@ namespace Pihole_Tray
 
     }
 }
-
