@@ -9,7 +9,7 @@
 - Background styles: Mica, Acrylic, Opaque
 - It can be pinned
 - Option to start on login
-- Support for multiple instances
+- Support for multiple instances *(Click on "Status:" to add more instances)*
 
 ## Screenshots
 
@@ -19,9 +19,10 @@
 <img src="Screenshots/3.jpg">
 </div>
 
-## ⚠️ Disclaimer
+## 🚀 Planned features
 
-This project is not affiliated with the Pi-hole project or its developers. This tool is a third-party application developed independently.
+- Pi-hole V6 support
+- "View all" menu for aggregated statistics
 
 ## 🤝 Contributing
 Contributions are welcome! If you have an idea for a feature or find a bug, please open an issue or submit a pull request!
@@ -29,6 +30,10 @@ Contributions are welcome! If you have an idea for a feature or find a bug, plea
 ## 📝 Important
 The project is under development and could have bugs.
 To remove an instance go to Computer\HKEY_CURRENT_USER\Software\Pihole_Tray in the Registry Editor and delete the instance (this will change in the future).
+
+## ⚠️ Disclaimer
+
+This project is not affiliated with the Pi-hole project or its developers. This tool is a third-party application developed independently.
 
 ## 📜 License
 
