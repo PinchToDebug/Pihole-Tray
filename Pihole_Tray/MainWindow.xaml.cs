@@ -36,7 +36,9 @@ namespace Pihole_Tray
     {
 
 
-
+        [SecurityCritical]
+        [DllImport("dwmapi.dll", SetLastError = false, ExactSpelling = true)]
+        public static extern int DwmSetWindowAttribute(IntPtr hwnd, uint dwAttribute, IntPtr pvAttribute, int cbAttribute);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -1469,29 +1471,23 @@ namespace Pihole_Tray
 
 
 
-        [SecurityCritical]
-        [DllImport("dwmapi.dll", SetLastError = false, ExactSpelling = true)]
-        public static extern int DwmSetWindowAttribute(IntPtr hwnd, uint dwAttribute, IntPtr pvAttribute, int cbAttribute);
 
 
 
         private void fluentWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            var attribute = GCHandle.Alloc((uint)4, GCHandleType.Pinned);
-            var result = DwmSetWindowAttribute(hwnd, (uint)33, attribute.AddrOfPinnedObject(), sizeof(uint));
-            attribute.Free();
-            if (result != 0)
+            if (FileVersionInfo.GetVersionInfo("C:\\Windows\\System32\\kernel32.dll").FileBuildPart >= 22000) // Makes sure it doesn't change on Windows 10 as it crashes the program
             {
-                throw Marshal.GetExceptionForHR(result);
+                var hwnd = new WindowInteropHelper(this).Handle;
+                var attribute = GCHandle.Alloc((uint)4, GCHandleType.Pinned);
+                var result = DwmSetWindowAttribute(hwnd, (uint)33, attribute.AddrOfPinnedObject(), sizeof(uint));
+                attribute.Free();
+                if (result != 0)
+                {
+                    Debug.WriteLine("Couldn't change DWM");
+                }
             }
-
         }
-
-
-
-
-
 
 
 
