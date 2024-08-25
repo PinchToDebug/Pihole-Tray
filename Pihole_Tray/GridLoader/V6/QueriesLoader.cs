@@ -1,14 +1,14 @@
 ﻿using System.Windows.Controls;
 using System.Windows;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 
-public class AllQueriesType
-{
+public class QueriesType { 
     public string Time { get; set; }
     public string DomainName { get; set; }
 }
 
-public class AllQueriesLoader
+public class QueriesLoader
 {
 
 
@@ -16,15 +16,18 @@ public class AllQueriesLoader
     {
         await Task.Run(() =>
         {
-            var items = new List<AllQueriesType>();
+            var items = new List<QueriesType>();
             if (arr == null)
             {
 
-                items.Add(new AllQueriesType
+                items.Add(new QueriesType
                 {
                     Time = "Array is null."
                 });
-                itemsControl.ItemsSource = items;
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    itemsControl.ItemsSource = items;
+                });
                 return;
             }
             try
@@ -33,16 +36,14 @@ public class AllQueriesLoader
 
                 foreach (var item in arr)
                 {
-                    if (item[4].ToString() != "1" && item[4].ToString() != "4") continue; // skipping if not blocked
-                    var time = DateTimeOffset.FromUnixTimeSeconds((long)item[0]).ToLocalTime().ToString("HH:mm:ss");
-                    var domainName = item[2].ToString();
+                    var time = DateTimeOffset.FromUnixTimeSeconds((long)item["time"]).ToLocalTime().ToString("HH:mm:ss");
+                    var domainName = item["domain"].ToString();
 
-                    items.Add(new AllQueriesType
+                    items.Add(new QueriesType
                     {
                         Time = time,
                         DomainName = domainName
                     });
-
                 }
 
                 Application.Current.Dispatcher.Invoke(() =>
@@ -53,12 +54,15 @@ public class AllQueriesLoader
             }
             catch (Exception e)
             {
-
-                items.Add(new AllQueriesType
+                items.Add(new QueriesType
                 {
                     Time = e.Message
                 });
-                itemsControl.ItemsSource = items;
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    Debug.WriteLine(e.Message);
+                    itemsControl.ItemsSource = items;
+                });
             }
 
         });

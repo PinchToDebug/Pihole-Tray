@@ -19,7 +19,7 @@
                  ResizeMode="NoResize" 
                  WindowStyle="None" 
                  UseLayoutRounding="True" Loaded="fluentWindow_Loaded" Background="#B2101010" >
-   
+
 
 
     <!--Background="#FF404040"-->
@@ -27,7 +27,7 @@
 
 
     <Grid  Name="MainGrid" Background="#B2101010">
-       
+
         <Grid Name="ContentGrid" Margin="16,16,16,16" >
             <StackPanel Name="Info_StackPanel" Visibility="Visible" >
 
@@ -41,23 +41,21 @@
 
                             <RowDefinition Height="22"/>
                             <RowDefinition Height="22"/>
-                            <RowDefinition Height="22" />
+                            <RowDefinition Name="GravityRow" Height="22" />
 
 
                         </Grid.RowDefinitions>
                         <ui:TextBlock Text="Home PI:"     Name="CurrentNameTB"  Grid.Column="0" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Cursor="Hand" MouseLeftButtonUp="Instance_MouseLeftButtonUp"/>
                         <TextBlock Text="Domains Blocked:" Grid.Column="0" Grid.Row="1" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
-                        <TextBlock Text="Gravity updated:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                        <TextBlock Name="GravityLB" Text="Gravity updated:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
 
 
                         <TextBlock Name="StatusTB" Text="-" MouseLeftButtonUp="StatusTB_MouseLeftButtonUp" Grid.Column="1" Grid.Row="0" Height="20"  Padding="7,0,0,0"  Cursor="Hand" HorizontalAlignment="Right" Margin="0,0,0,0" FontWeight="SemiBold"/>
-
-
                         <TextBlock Name="DomainsBlockedTB" Text="-" Grid.Column="1" Grid.Row="1" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#FFFF6E6E"/>
                         <TextBlock Name="GravityTB" Text="-" Grid.Column="1" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"/>
 
 
-                
+
 
                     </Grid>
                 </ui:Card>
@@ -99,7 +97,7 @@
                          MouseEnter="OnMouseEnterBlockHistoryCard"
                          MouseLeave="OnMouseLeaveBlockHistoryCard" 
                          >
-                    
+
                     <!--Height="690"-->
                     <ScrollViewer Name="BlockHistorySV"
                                   VerticalScrollBarVisibility="Hidden"
@@ -121,7 +119,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    
+
                 </ui:Card>
 
 
@@ -182,27 +180,34 @@
 
                     </Grid>
                 </ui:Card>
-               
+
 
             </StackPanel>
 
-            <StackPanel x:Name="Default_StackPanel"   Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" >
-                <Button Content="Back" Name="BackButton" HorizontalAlignment="Right" Visibility="Hidden" Click="BackButton_Click"/>
+            <StackPanel x:Name="Default_StackPanel"  Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisibleChanged="Default_StackPanel_IsVisibleChanged" d:IsHidden="True" >
+                <Button Content="Back" Name="BackButton" HorizontalAlignment="Right" Visibility="Collapsed" Click="BackButton_Click"/>
 
                 <TextBlock  Text="Give it a name:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5" HorizontalAlignment="Left"  />
                 <TextBox Name="NameTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"/>
 
-                <TextBlock  Text="API address:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
-                <ui:TextBox Name="AddressTB" Margin="10,0,10,10"  PlaceholderText="http://pi.hole/admin/api.php" HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"/>
+                <TextBlock Name="AddressLB" Text="API address:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                <ui:TextBox Name="AddressTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"  TextChanged="AddressTB_TextChanged" >
 
+                </ui:TextBox>
 
-                <TextBlock  Text="API key"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
-                <TextBox Name="ApiTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270" Height="60" TextWrapping="Wrap" FontSize="13"/>
-                <ui:HyperlinkButton NavigateUri="http://pi.hole/admin/settings.php?tab=api"  Content="http://pi.hole/admin/settings.php?tab=api" HorizontalAlignment="Center" />
+                <StackPanel Name="LoginV5">
+                    <TextBlock  Text="API key:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                    <TextBox Name="ApiTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270" Height="60" TextWrapping="Wrap" FontSize="13"/>
+                </StackPanel>
+                <StackPanel Name="LoginV6">
+                    <TextBlock  Text="Password:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                    <ui:PasswordBox Name="PasswordTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270" Height="35" TextWrapping="Wrap" FontSize="13"/>
+                </StackPanel>
+                <ui:HyperlinkButton Name="NavHyperlinkButton" NavigateUri="http://pi.hole/admin/settings.php?tab=api"  Content="http://pi.hole/admin/settings.php?tab=api" HorizontalAlignment="Center" />
                 <ui:ToggleSwitch Name="setDefaultTS"  Visibility="Collapsed" Content="Use as default view on login" HorizontalAlignment="Center" Padding="20,10,20,10"    Margin="0,17,0,0"  />
 
-                <Button Name="ApiSaveBTN" Content="Save and use API key" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Click="ApiSaveBTN_Click" Margin="0,17,0,0"  />
-                <ui:DropDownButton Name="SelectOtherInstanceBTN" Visibility="Collapsed" Content="Select other" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="175" Margin="0,17,0,0" Click="SelectOtherInstnaceBTN_Click">
+                <Button Name="ApiSaveBTN" Content="Save and use API key" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="195" Click="ApiSaveBTN_Click" Margin="0,17,0,0"  />
+                <ui:DropDownButton Name="SelectOtherInstanceBTN" Visibility="Collapsed" Content="Select other" HorizontalAlignment="Center" Padding="20,10,20,10"  Width="195" Margin="0,17,0,0" Click="SelectOtherInstnaceBTN_Click">
                     <ui:DropDownButton.Flyout >
                         <ContextMenu Name="OtherInstanceContextMenu">
                         </ContextMenu>
@@ -217,7 +222,7 @@
         </Grid>
 
 
-        
+
         <Grid  Name="LostConnectionGrid" Visibility="Hidden">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <ui:ProgressRing IsIndeterminate="True"/>
@@ -232,7 +237,7 @@
                 <ContextMenu MinWidth="60" >
                     <ui:MenuItem x:Name="Autorun_Button" Header="Start on login" IsCheckable="True" Checked="Autorun_Checked"  Unchecked="Autorun_Checked"  />
 
-                    <ui:MenuItem x:Name="OpenInBrowser_Button" Height="33" Icon="{ui:SymbolIcon Symbol=Link28}" Header="http://pi.hole" Foreground="#FF549CE4" Click="OpenInBrowser_Button_Click" />
+                    <ui:MenuItem x:Name="OpenInBrowser_Button" Height="33" Icon="{ui:SymbolIcon Symbol=Link28}" Header="empty" Foreground="#FF549CE4" Click="OpenInBrowser_Button_Click" />
 
                     <ui:MenuItem  Height="38" Header="Background"  Icon="{ui:SymbolIcon Symbol=ColorBackground20}" >
                         <ui:ToggleSwitch Name="MicaBG"  Content="Mica effect"   IsChecked="False"  Click="ChangeBackground_Click"/>

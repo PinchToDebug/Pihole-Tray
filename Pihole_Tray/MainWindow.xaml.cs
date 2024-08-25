@@ -1,20 +1,16 @@
 ﻿using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -23,8 +19,6 @@ using System.Windows.Media.Effects;
 using System.Windows.Shell;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Interop;
-using static System.Net.Mime.MediaTypeNames;
-using Button = System.Windows.Controls.Button;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
 using MessageBox = System.Windows.MessageBox;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
@@ -59,6 +53,8 @@ namespace Pihole_Tray
         private bool enterAnim = false;
         private bool leaveAnim = false;
 
+        private bool notifClickUpdateInfo = false;
+
         private CancellationTokenSource cancelToken;
 
         private InstanceStorage storage;
@@ -67,10 +63,21 @@ namespace Pihole_Tray
         private SliderValues slider;
 
         private readonly HttpClient httpClient;
+
+        // V5
         private JObject topSources;
         private JArray queries_data;
         private JObject forward_destinations;
         private JObject querytypes;
+
+        // V6
+        private JArray blocked;
+        private JArray topClients;
+        private JArray upStreams;
+        private JObject queryTypes;
+
+
+        Brush AddressBrush;
 
         private Slider DisableSlider;
         private TextBlock DisableEnableButton;
@@ -112,6 +119,12 @@ namespace Pihole_Tray
             this.WindowStyle = WindowStyle.None;
 
             InitializeComponent();
+             AddressBrush = AddressTB.BorderBrush;
+            NavHyperlinkButton.Visibility = Visibility.Collapsed;
+            LoginV6.Visibility = Visibility.Collapsed;
+            LoginV5.Visibility = Visibility.Collapsed;
+         //   ApiSaveBTN.Visibility = Visibility.Collapsed;
+
             storage = new InstanceStorage();
             slider = new SliderValues();
             CalcHeight = new CalcHeight();
@@ -184,12 +197,11 @@ namespace Pihole_Tray
             {
                 Timeout = TimeSpan.FromMilliseconds(2000)
             };
-
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Pi-hole tray");
 
 
             storage.FillUp();
             Debug.WriteLine($"da count::: {storage.Instances.Count}");
-            // TODO: hangs here?
 
             if (storage.Instances.Count > 0)
             {
@@ -205,8 +217,9 @@ namespace Pihole_Tray
                 }
                 cancelToken = new CancellationTokenSource();
                 selectedInstance = storage.DefaultInstance();
-
-                UpdateInfo(selectedInstance, cancelToken.Token);
+                this.Top = (int)SystemParameters.PrimaryScreenHeight - 1;
+                //UpdateInfo(selectedInstance, cancelToken.Token);
+                // INFO: It shouldn't do it, it also gets canceled when gets activated on launch.
             }
 
         }
@@ -251,17 +264,19 @@ namespace Pihole_Tray
             Debug.WriteLine($"tf: {storage.Instances.Count == 0}");
             Instance temp = new Instance
             {
-                API_KEY = ApiTB.Text,
                 Name = NameTB.Text,
                 Address = AddressTB.Text,
+                Password = PasswordTB.Password,
+                API_KEY = ApiTB.Text,
+                SID = "noSID",
                 Order = storage.Instances.Count + 1,
+                isV6 = !ApiTB.Text.Contains("/admin/api.php"),
                 IsDefault = (bool)setDefaultTS.IsChecked ? true : setDefault,
             };
-
-
+            notifClickUpdateInfo = false;
 
             stopUpdatingInfo = false;
-            writeOnce = true;
+            apiSaveCalled = true;
 
             if (cancelToken != null)
             {
@@ -277,13 +292,16 @@ namespace Pihole_Tray
 
         private bool stopUpdatingInfo = false;
 
-        bool writeOnce = true;
+        bool apiSaveCalled = false;
         private async void UpdateInfo(Instance instance, CancellationToken token)
         {
+
             try
             {
+                instance.isV6 = !instance.Address!.Contains("/admin/api.php");
+                OpenInBrowser_Button.Header = instance.Name;
                 if (coldRun) this.Top = (int)SystemParameters.PrimaryScreenHeight;
-
+                Debug.WriteLine("v6 status: " + instance.isV6);
                 selectedInstance = instance;
                
                 if (!string.IsNullOrEmpty(ApiTB.Text))
@@ -296,25 +314,31 @@ namespace Pihole_Tray
 
                 try
                 {
-
-                    Debug.WriteLine($"this is address1: {instance.Address}");
+                    dynamic _ = new ExpandoObject();
+                    Debug.WriteLine($"Instances address: {instance.Address}");
                     bool pingFailed = false;
                     try
                     {
-                        Debug.WriteLine(instance.Address);
-                        Debug.WriteLine(new Uri(instance.Address).AbsoluteUri);
-                        Debug.WriteLine(new Uri(instance.Address).Host);
-                        Debug.WriteLine(new Uri(instance.Address).AbsolutePath);
-                        Debug.WriteLine(new Uri(instance.Address).DnsSafeHost);
-                        dynamic _ = new ExpandoObject();
+                        if (instance.isV6 == true)
+                        {
+                           await instance.Login(instance.Password, httpClient);
+                           storage.WriteInstanceToKey(instance);
 
-                        _ = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?summary&auth=" + instance.API_KEY))!;
+                        }
+                        else
+                        {
+                            _ = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?summary&auth=" + instance.API_KEY))!;
 
-                        DnsQueryTB.Text = DnsQueryTB.Text = _.dns_queries_all_types;
+                            DnsQueryTB.Text = DnsQueryTB.Text = _.dns_queries_all_types;
+                            storage.WriteInstanceToKey(instance);
+
+                        }
+
 
                     }
                     catch (Exception ex)
                     {
+
                         Debug.WriteLine("ERROR 1: " + ex.Message);
 
                         using (Ping ping = new Ping())
@@ -366,27 +390,32 @@ namespace Pihole_Tray
                     return;
                 }
 
-                Default_StackPanel.Visibility = Visibility.Hidden;
-                Info_StackPanel.Visibility = Visibility.Visible;
+                if (!notifClickUpdateInfo)
+                {
+                    Default_StackPanel.Visibility = Visibility.Hidden;
+                    Info_StackPanel.Visibility = Visibility.Visible;
+                    notifClickUpdateInfo = false;
+                }
+             
                 Debug.WriteLine("Connected successfully!");
 
-
+                // V5
                 dynamic summary = new ExpandoObject();
-                dynamic getAllQueries = new ExpandoObject();
-                dynamic getQuerySources = new ExpandoObject();
-                dynamic getForwardDestinations = new ExpandoObject();
-                dynamic getQueryTypes = new ExpandoObject();
+
+                // V6
+                dynamic status = new ExpandoObject();
+                dynamic summaryV6 = new ExpandoObject();
 
 
-                if (coldRun)
-                {
-                    storage.WriteInstanceToKey(instance);
-                    writeOnce = false;
-                }
+                //if (coldRun)
+                //{
+                //    storage.WriteInstanceToKey(instance);
+                //    writeOnce = false;
+                //}
 
                 bool showEffect = true;
                 bool blurCard = true;
-
+                dynamic response;
 
                 while (true)
                 {
@@ -412,7 +441,6 @@ namespace Pihole_Tray
                         return;
                     }
                     var tasks = new List<Task>();
-
                     while (isAnimating)
                     {
                         await Task.Delay(10);
@@ -426,64 +454,114 @@ namespace Pihole_Tray
 
                     try
                     {
-                        await Task.Delay(50);
-                        summary = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?summary&auth=" + instance.API_KEY))!;
-                        await Task.Delay(50);
-                        if ((bool)RecentBlocksTS.IsChecked!)
+                        await Task.Delay(50, token);
+                        if (instance.isV6 == true)
                         {
-                            getAllQueries = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getAllQueries=250&auth=" + instance.API_KEY))!;
-                            var queriesData = (JArray)getAllQueries.data;
-                            queries_data = new JArray(queriesData.Reverse());
-                            await Task.Delay(50);
-                        }
-                        if ((bool)SourcesTS.IsChecked!)
-                        {
-                            getQuerySources = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQuerySources&auth=" + instance.API_KEY))!;
-                            topSources = (JObject)getQuerySources.top_sources;
-                            await Task.Delay(50);
+                           
+                            summaryV6 = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/summary"))!;
+                            await Task.Delay(50, token);
 
-                        }
-                        if ((bool)ForwardDestinationsTS.IsChecked!)
-                        {
-                            getForwardDestinations = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getForwardDestinations&auth=" + instance.API_KEY))!;
-                            forward_destinations = (JObject)getForwardDestinations.forward_destinations;
-                            await Task.Delay(50);
+                            status = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/dns/blocking"))!;
+                            await Task.Delay(50, token);
 
-                        }
-                        if ((bool)QueryTS.IsChecked!)
-                        {
-                            getQueryTypes = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQueryTypes&auth=" + instance.API_KEY))!;
-                            querytypes = (JObject)getQueryTypes.querytypes;
-                            await Task.Delay(50);
+
+                            if ((bool)RecentBlocksTS.IsChecked!)
+                            {
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/queries?length=100&upstream=blocklist"));
+                                blocked = (JArray)response.queries; 
+                                await Task.Delay(50, token);
+
+                            }
+                            if ((bool)SourcesTS.IsChecked!)
+                            {
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/top_clients"));
+                                topClients = (JArray)response.clients;
+                                await Task.Delay(50, token);
+                            }
+                            if ((bool)ForwardDestinationsTS.IsChecked!)
+                            {
+                                //working on this currently
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/upstreams"))!;
+                                upStreams = (JArray)response.upstreams;
+                                await Task.Delay(50, token);
+
+                            }
+                            if ((bool)QueryTS.IsChecked!)
+                            {
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/query_types"));
+                                queryTypes = (JObject)response.types;
+                            }
+                          
                         }
 
-                        DnsQueryTB.Text = summary.dns_queries_all_types;
+                        else
+                        {
+
+                            summary = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?summary&auth=" + instance.API_KEY))!;
+                            await Task.Delay(50, token);
+                            if ((bool)RecentBlocksTS.IsChecked!)
+                            {
+
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getAllQueries=250&auth=" + instance.API_KEY))!;
+                                var queriesData = (JArray)response.data;
+                                queries_data = new JArray(queriesData.Reverse());
+                                await Task.Delay(50, token);
+                            }
+                            if ((bool)SourcesTS.IsChecked!)
+                            {
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQuerySources&auth=" + instance.API_KEY))!;
+                                topSources = (JObject)response.top_sources;
+                                await Task.Delay(50, token);
+
+                            }
+                            if ((bool)ForwardDestinationsTS.IsChecked!)
+                            {
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getForwardDestinations&auth=" + instance.API_KEY))!;
+                                forward_destinations = (JObject)response.forward_destinations;
+                                await Task.Delay(50, token);
+
+                            }
+                            if ((bool)QueryTS.IsChecked!)
+                            {
+                            
+                                response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQueryTypes&auth=" + instance.API_KEY))!;
+                                querytypes = (JObject)response.querytypes;                        
+                            }
+
+                            DnsQueryTB.Text = summary.dns_queries_all_types;
+                        }
+                       
 
                         ContentGrid.Effect = null;
                         showEffect = true;
                         LostConnectionGrid.Visibility = Visibility.Hidden;
                     }
                     catch (TaskCanceledException to) {
-                        Debug.WriteLine("ERROR 3: " + to.Message);
-                        if (showEffect)
-                        {
-                            ContentGrid.Effect = new BlurEffect
-                            {
-                                Radius = 20,
-                                RenderingBias = RenderingBias.Quality,
-                                KernelType = KernelType.Gaussian
-                            };
-                            showEffect = false;
-                            LostConnectionGrid.Visibility = Visibility.Visible;
-                            LostConnectionTB.Text = "lost connection, trying to reconnect";
-                        }
-                        continue;
+                        
+                        //Debug.WriteLine("ERROR 3: " + to.Message);
+                        //if (showEffect && token != null)
+                        //{
+                        //    ContentGrid.Effect = new BlurEffect
+                        //    {
+                        //        Radius = 20,
+                        //        RenderingBias = RenderingBias.Quality,
+                        //        KernelType = KernelType.Gaussian
+                        //    };
+                        //    showEffect = false;
+                        //    LostConnectionGrid.Visibility = Visibility.Visible;
+                        //    LostConnectionTB.Text = "lost connection, trying to reconnect";
+                        //}
+
+                        // Not needed
+                        return;
 
                     }
                     catch (Exception e)
                     {
+                        await instance.Login(instance.Password, httpClient);
+                        storage.WriteInstanceToKey(instance);
                         Debug.WriteLine("ERROR 3: " + e.Message);
-                        if (showEffect)
+                        if (showEffect && token != null)
                         {
                             ContentGrid.Effect = new BlurEffect
                             {
@@ -506,39 +584,87 @@ namespace Pihole_Tray
                         continue;
                     }
 
-                    #region basic1, basic 2
-                    AdsBlockedTB.Text = summary.ads_blocked_today;
-                    GravityTB.Text = $"{(summary.gravity_last_updated.relative.days > 0 ? summary.gravity_last_updated.relative.days + "d" : string.Empty)} " + $"{(summary.gravity_last_updated.relative.hours > 0 ? summary.gravity_last_updated.relative.hours + "h" : string.Empty)} " + $"{(summary.gravity_last_updated.relative.minutes > 0 ? summary.gravity_last_updated.relative.minutes + "m" : string.Empty)}".Replace("  ", " ");
-                    DomainsBlockedTB.Text = summary.domains_being_blocked;
-                    StatusTB.Text = summary.status;
 
-                    if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
-                    else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
-                    #endregion
-
-
-                    if ((bool)RecentBlocksTS.IsChecked) await new AllQueriesLoader().LoadAsync(BlockHistoryItemsControl, queries_data);
-                    if ((bool)SourcesTS.IsChecked) await new QuerySourcesLoader().LoadAsync(SourcesItemsControl, topSources);
-                    if ((bool)ForwardDestinationsTS.IsChecked) await new ForwardDestinationsLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations);
-                    if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes);
-                    if (writeOnce && !coldRun)
+                    if (instance.isV6 == true)
                     {
-                        Debug.Write("WROTE ONCE");
+                        token.ThrowIfCancellationRequested();
+                        GravityLB.Visibility = Visibility.Collapsed;
+                        GravityTB.Visibility = Visibility.Collapsed;
+                        GravityRow.Height = new GridLength(0.0);
+                        try // Temp solution
+                        {
+                            AdsBlockedTB.Text = string.Format("{0:N0}", summaryV6.queries.blocked);
+                            DnsQueryTB.Text = string.Format("{0:N0}", summaryV6.queries.total);
+                            DomainsBlockedTB.Text = string.Format("{0:N0}", summaryV6.gravity.domains_being_blocked);
+                        }
+                        catch 
+                        {
+                            Debug.WriteLine("String formatting failed");
+                            AdsBlockedTB.Text = summaryV6.queries.blocked;
+                            DnsQueryTB.Text = summaryV6.queries.total;
+                            DomainsBlockedTB.Text = summaryV6.gravity.domains_being_blocked;
+                        }
+                     
+                        StatusTB.Text = status.blocking;
+                        if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
+                        else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
+
+                        if ((bool)RecentBlocksTS.IsChecked) await new QueriesLoader().LoadAsync(BlockHistoryItemsControl, blocked);
+                        if ((bool)SourcesTS.IsChecked) await new TopClients().LoadAsync(SourcesItemsControl, topClients);
+                        //if ((bool)ForwardDestinationsTS.IsChecked)
+                            await new upStreamsLoader().LoadAsync(ForwardDestinationsGrid, upStreams);
+                        if ((bool)QueryTS.IsChecked) await new TypesLoader().LoadAsync(QueryTypesGrid, queryTypes);
+                        token.ThrowIfCancellationRequested();
+                    }
+                    else
+                    {
+                        token.ThrowIfCancellationRequested();
+                        GravityLB.Visibility = Visibility.Visible;
+                        GravityTB.Visibility = Visibility.Visible;
+                        GravityRow.Height = new GridLength(22.0);
+                        AdsBlockedTB.Text = summary.ads_blocked_today;
+                        GravityTB.Text = $"{(summary.gravity_last_updated.relative.days > 0 ? summary.gravity_last_updated.relative.days + "d" : string.Empty)} " + $"{(summary.gravity_last_updated.relative.hours > 0 ? summary.gravity_last_updated.relative.hours + "h" : string.Empty)} " + $"{(summary.gravity_last_updated.relative.minutes > 0 ? summary.gravity_last_updated.relative.minutes + "m" : string.Empty)}".Replace("  ", " ");
+                        DomainsBlockedTB.Text = summary.domains_being_blocked;
+                        StatusTB.Text = summary.status;
+                        if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
+                        else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
+
+                        if ((bool)RecentBlocksTS.IsChecked) await new AllQueriesLoader().LoadAsync(BlockHistoryItemsControl, queries_data);
+                        if ((bool)SourcesTS.IsChecked) await new QuerySourcesLoader().LoadAsync(SourcesItemsControl, topSources);
+                        if ((bool)ForwardDestinationsTS.IsChecked) await new ForwardDestinationsLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations);
+                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes);
+                        token.ThrowIfCancellationRequested();
+                    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                   
+                    if (apiSaveCalled )
+                    {
                         bool shouldWrite = true;
                         foreach (Instance i in storage.Instances)
                         {
                             if (i.Name == instance.Name)
                             {
-                                Debug.WriteLine($"i: {i.Name}");
-                                Debug.WriteLine($"s: {instance.Name}");
-
                                 shouldWrite = false;
                             }
                         }
-                        if (shouldWrite)
-                        {
 
-                            selectedInstance = instance;
+                        if (shouldWrite) // if name isnt contained
+                        {
+                          //  selectedInstance = instance;
                             if ((bool)setDefaultTS.IsChecked)
                             {
                                 foreach (var i in storage.Instances)
@@ -546,15 +672,16 @@ namespace Pihole_Tray
                                     if (i.IsDefault == true)
                                     {
                                         i.IsDefault = false;
-                                        storage.WriteInstanceToKey(i);
                                     }
                                 }
                             }
                             storage.WriteInstanceToKey(instance);
                             storage.Instances.Add(instance);
                         }
-                        writeOnce = false;
+                        apiSaveCalled = false;
                     }
+                  
+
 
                     if (canResize /*&& !BlockHistoryCard.IsMouseOver*/)
                     {
@@ -581,14 +708,18 @@ namespace Pihole_Tray
                 }
 
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                //   throw;
+                Debug.WriteLine($"Updateinfo crash: {e.Message}");
+                if (instance.isV6 == true)
+                {
+                    await instance.Login(instance.Password, httpClient);
+                    storage.WriteInstanceToKey(instance);
+
+                }
             }
 
         }
-
-
 
 
 
@@ -700,9 +831,10 @@ namespace Pihole_Tray
                 {
                     cancelToken.Cancel();
                 }
-                cancelToken = new CancellationTokenSource();
                 if (selectedInstance != null)
                 {
+                    cancelToken = new CancellationTokenSource();
+
                     UpdateInfo(selectedInstance, cancelToken.Token);
 
                 }
@@ -727,6 +859,7 @@ namespace Pihole_Tray
                     cancelToken.Cancel();
                 }
                 cancelToken = new CancellationTokenSource();
+                notifClickUpdateInfo = true;
                 UpdateInfo(selectedInstance, cancelToken.Token);
             }
             this.Activate();
@@ -970,11 +1103,24 @@ namespace Pihole_Tray
             WriteToRegistryRoot("startOnLogin", Autorun_Button.IsChecked);
         }
 
-        private void OpenInBrowser_Button_Click(object sender, RoutedEventArgs e)
+        private async void OpenInBrowser_Button_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                ProcessStartInfo sInfo = new(new Uri("http://pi.hole").AbsoluteUri) { UseShellExecute = true };
+                string url = selectedInstance.Address;
+
+                Debug.WriteLine(selectedInstance.isV6);
+                if (selectedInstance.isV6 == true)
+                {
+                    Debug.WriteLine("replav6");
+                    url = url.Replace("/api", "");
+                }
+                else
+                {
+                   url = url.Replace("/admin/api.php", "");
+
+                }
+                ProcessStartInfo sInfo = new ProcessStartInfo($"{url}/admin") { UseShellExecute = true };
                 _ = Process.Start(sInfo);
             }
             catch
@@ -1107,8 +1253,17 @@ namespace Pihole_Tray
             if (DisableSlider != null && slider.Values.TryGetValue((int)DisableSlider.Value, out var data) && StatusTB.Text == "enabled")
             {
                 Debug.WriteLine($"Trying to disable");
+                HttpResponseMessage response;
+                if (selectedInstance.isV6 == true)
+                {
+                    response = await httpClient.PostAsJsonAsync($"{selectedInstance.Address}/dns/blocking",new { blocking = false, timer = data.Item2 });
+                }
+                else
+                {
+                    response = await httpClient.GetAsync(selectedInstance.Address + $"?disable={data.Item2}&auth=" + selectedInstance.API_KEY);
+                }
 
-                HttpResponseMessage response = await httpClient.GetAsync(selectedInstance.Address + $"?disable={data.Item2}&auth=" + selectedInstance.API_KEY);
+
                 if (response.IsSuccessStatusCode)
                 {
                     Debug.WriteLine($"Disabled for: {data.Item1}");
@@ -1121,10 +1276,21 @@ namespace Pihole_Tray
                 DisableSlider.Value = 0;
 
             }
+
+
+
             else if (StatusTB.Text == "disabled")
             {
                 Debug.WriteLine($"Trying to enable");
-                HttpResponseMessage response = await httpClient.GetAsync(selectedInstance.Address + "?enable&auth=" + selectedInstance.API_KEY);
+                HttpResponseMessage response;
+                if (selectedInstance.isV6 == true)
+                {
+                    response = await httpClient.PostAsJsonAsync($"{selectedInstance.Address}/dns/blocking", new { blocking = true, timer = 0 });
+                }
+                else
+                {
+                    response = await httpClient.GetAsync(selectedInstance.Address + "?enable&auth=" + selectedInstance.API_KEY);
+                }
                 if (response.IsSuccessStatusCode)
                 {
                     Debug.WriteLine($"Enabled");
@@ -1251,6 +1417,12 @@ namespace Pihole_Tray
                             _ = Task.Run(() =>
                             {
                                 int status = instance.Status().Result;
+                                if (instance.isV6 == true) // TODO: change later when instances can be edited
+                                {
+                                    storage.WriteInstanceToKey(instance);
+                                }
+
+                                Debug.WriteLine($"{instance.Name}, {status}");
                                 Dispatcher.Invoke(() =>
                                 {
                                     SolidColorBrush brush = new SolidColorBrush();
@@ -1267,7 +1439,14 @@ namespace Pihole_Tray
                                         case 2: // Reachable but can't reach API
                                             brush = new SolidColorBrush(Color.FromRgb(64, 116, 244)); // Blue
                                             menuItem.Click -= InstanceSelected_Click;
-                                            menuItem.ToolTip = "Address reachable, but API inaccessible.";
+                                            if (instance.isV6 == true)
+                                            {
+                                                menuItem.ToolTip = "Address reachable, but API inaccessible.\nLikely the password is incorrect";
+                                            }
+                                            else
+                                            {
+                                                menuItem.ToolTip = "Address reachable, but API inaccessible.";
+                                            }
                                             menuItem.Cursor = Cursors.Help;
                                             break;
 
@@ -1341,6 +1520,9 @@ namespace Pihole_Tray
             BackButton.Visibility = Visibility.Visible;
             Info_StackPanel.Visibility = Visibility.Hidden;
             Default_StackPanel.Visibility = Visibility.Visible;
+            LoginV5.Visibility = Visibility.Collapsed;
+            LoginV6.Visibility = Visibility.Collapsed;
+            ApiSaveBTN.Visibility = Visibility.Collapsed;
             stopUpdatingInfo = true;
             if (storage.Instances.Count != 0)
             {
@@ -1466,14 +1648,6 @@ namespace Pihole_Tray
             }
         }
 
-
-
-
-
-
-
-
-
         private void fluentWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (FileVersionInfo.GetVersionInfo("C:\\Windows\\System32\\kernel32.dll").FileBuildPart >= 22000) // Makes sure it doesn't change on Windows 10 as it crashes the program
@@ -1488,9 +1662,6 @@ namespace Pihole_Tray
                 }
             }
         }
-
-
-
 
         private void SelectOtherInstnaceBTN_Click(object sender, RoutedEventArgs e)
         {
@@ -1582,8 +1753,91 @@ namespace Pihole_Tray
             }
             OtherInstanceContextMenu.IsOpen = true;
         }
+        static async Task<string> CheckUrl(HttpClient client, string url)
+        {
+            try
+            {
+                HttpResponseMessage response = await client.GetAsync(url);
+                return response.IsSuccessStatusCode ? url : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        private async void AddressTB_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            Brush temp = AddressTB.BorderBrush;
+            if (AddressTB.Text.EndsWith("/api.php") && (AddressTB.Text.StartsWith("https://") | AddressTB.Text.StartsWith("http://")))
+            {
+                AddressTB.BorderBrush = AddressBrush;
+                LoginV6.Visibility = Visibility.Collapsed;
+                LoginV5.Visibility = Visibility.Visible;
+                ApiSaveBTN.Content = "Save and use API key";        
+                ApiSaveBTN.Visibility = Visibility.Visible;
+                AddressLB.Text = "V5 API address:";             
 
+                NavHyperlinkButton.NavigateUri = AddressTB.Text.Replace("/api.php", "/settings.php?tab=api");
+                NavHyperlinkButton.Content = string.IsNullOrEmpty(NavHyperlinkButton.NavigateUri) ? "API url not available" : "Link to get the API key";
+                NavHyperlinkButton.Visibility = Visibility.Visible;
+            }
 
+            else if (AddressTB.Text.EndsWith("/api") && !AddressTB.Text.EndsWith("admin/api") && (AddressTB.Text.StartsWith("https://") | AddressTB.Text.StartsWith("http://")))
+            {
+                AddressTB.BorderBrush = AddressBrush;
+                LoginV5.Visibility = Visibility.Collapsed;
+                LoginV6.Visibility = Visibility.Visible;
+                ApiSaveBTN.Content = "Save and use password";
+                NavHyperlinkButton.Visibility = Visibility.Collapsed;
+                ApiSaveBTN.Visibility = Visibility.Visible;
+                AddressLB.Text = "V6 API address:";
 
+            }
+            else if (!string.IsNullOrEmpty( AddressTB.Text))
+            {  
+
+                AddressTB.BorderBrush = (Brush)new BrushConverter().ConvertFrom("#B2FF5252");
+                NavHyperlinkButton.Visibility = Visibility.Collapsed;
+                ApiSaveBTN.Visibility = Visibility.Collapsed;
+                AddressLB.Text = "API address:";
+            }
+            else
+            {
+                AddressTB.BorderBrush = AddressBrush;
+            }
+        }
+        
+        private async void Default_StackPanel_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (Default_StackPanel.Visibility == Visibility.Visible)
+            {
+                if (AddressTB.Text.EndsWith("/api.php") && (AddressTB.Text.StartsWith("https://") | AddressTB.Text.StartsWith("http://")))
+                {
+                    AddressTB.BorderBrush = AddressBrush;
+                    LoginV6.Visibility = Visibility.Collapsed;
+                    LoginV5.Visibility = Visibility.Visible;
+                    ApiSaveBTN.Content = "Save and use API key";
+                    ApiSaveBTN.Visibility = Visibility.Visible;
+                    AddressLB.Text = "V5 API address:";
+                              NavHyperlinkButton.Visibility = Visibility.Visible;
+                }
+
+                else if (AddressTB.Text.EndsWith("/api") && !AddressTB.Text.EndsWith("admin/api") && (AddressTB.Text.StartsWith("https://") | AddressTB.Text.StartsWith("http://")))
+                {
+                    AddressTB.BorderBrush = AddressBrush;
+                    LoginV5.Visibility = Visibility.Collapsed;
+                    LoginV6.Visibility = Visibility.Visible;
+                    ApiSaveBTN.Content = "Save and use password";
+                    NavHyperlinkButton.Visibility = Visibility.Collapsed;
+                    ApiSaveBTN.Visibility = Visibility.Visible;
+                    AddressLB.Text = "V6 API address:";
+
+                }
+                else
+                {
+                    AddressTB.BorderBrush = AddressBrush;          
+                }
+            }
+        }
     }
 }

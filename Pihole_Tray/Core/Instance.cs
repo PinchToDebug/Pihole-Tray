@@ -1,15 +1,21 @@
 ﻿using Microsoft.Win32;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Net.NetworkInformation;
+using System.Text.Json;
+using System.Windows.Documents;
+using System.Windows.Input;
+using static System.Net.WebRequestMethods;
 
 public class Instance {
 
     private readonly HttpClient httpClient = new HttpClient
     {
-        Timeout = TimeSpan.FromMilliseconds(400)
+        Timeout = TimeSpan.FromMilliseconds(700)
     };
 
     private dynamic statusCheck = new ExpandoObject();
@@ -18,41 +24,99 @@ public class Instance {
     public  string? Address { get; set; }
     public  int? Order { get; set; }
     public  bool? IsDefault { get; set; }
-    public Instance() {
+    public  bool? isV6 { get; set; }
+    public string? Password { get; set; }
+    public string? SID { get; set; }
 
-    }
+
     public async Task<int> Status()
     {
-       // await Task.Delay(1000);
         Debug.WriteLine("Status checking");
         Debug.WriteLine(Address);
 
-
         try
         {
-            var response = await httpClient.GetAsync(Address + "?summary&auth=" + API_KEY);
+            HttpResponseMessage response;
+            if (isV6 == true)
+            {
+                httpClient.DefaultRequestHeaders.Clear();
+                httpClient.DefaultRequestHeaders.Add("sid", SID);
 
-            if (!response.IsSuccessStatusCode)
+                response = await httpClient.GetAsync($"{Address}/dns/blocking");
+                statusCheck = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync());
+            }
+            else
+            {
+                response = await httpClient.GetAsync($"{Address}?summary&auth={API_KEY}");
+                statusCheck = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync());
+            }
+
+            if (!response.IsSuccessStatusCode && isV6 == false)
             {
                 return (int)1;
             }
 
 
-            statusCheck = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync());
+            httpClient.DefaultRequestHeaders.Clear();
+            httpClient.DefaultRequestHeaders.Add("sid", SID);
 
-            Debug.WriteLine($"Status from response: {statusCheck.status}");
-            if (statusCheck.status == "enabled")
+
+            if (isV6 == true)
             {
-                return 0;
+                Debug.WriteLine($"Status from response: {Name},{statusCheck.blocking}");
+                if (response.IsSuccessStatusCode)
+                {
+                    if (statusCheck.blocking == "enabled")
+                    {
+                        return 0;
+                    }
+                    else if (statusCheck.blocking == "disabled")
+                    {
+                        return 1;
+                    }
+                }
+                else
+                {
+                    await Login(Password, httpClient);
+                    httpClient.DefaultRequestHeaders.Clear();
+                    httpClient.DefaultRequestHeaders.Add("sid", SID);
+                    response = await httpClient.GetAsync($"{Address}/dns/blocking");
+                    statusCheck = JsonConvert.DeserializeObject<dynamic>(await response.Content.ReadAsStringAsync());
+                    if (response.IsSuccessStatusCode)
+                    {
+                       
+                        if (statusCheck.blocking == "enabled")
+                        {
+                            return 0;
+                        }
+                        else if (statusCheck.blocking == "disabled")
+                        {
+                            return 1;
+                        }
+                    }
+                    else
+                    {
+                        return 2;
+                    }
+                }
             }
-            else if (statusCheck.status == "disabled")
+            else
             {
-                return 1;
+                Debug.WriteLine($"Status from response: {statusCheck.status}");
+                if (statusCheck.status == "enabled")
+                {
+                    return 0;
+                }
+                else if (statusCheck.status == "disabled")
+                {
+                    return 1;
+                }
             }
         }
 
-        catch 
+        catch (Exception e)
         {
+            Debug.WriteLine($"Status check error: {e.Message}");
             using (Ping ping = new Ping())
             {
                 try
@@ -73,11 +137,55 @@ public class Instance {
                     return -1;
                 }
             }
-           
+
         }
         return -1;
     }
 
+
+    public async Task Login(string password, HttpClient client)
+    {
+        try
+        {
+
+            Debug.WriteLine($"\n--------------------------------");
+            Debug.WriteLine($"LOGIN: SID Checking: {SID}");
+
+            client.DefaultRequestHeaders.Clear();
+            client.DefaultRequestHeaders.Add("User-Agent", $"Pi-hole tray");
+            client.DefaultRequestHeaders.Add("sid", SID);
+
+            var validityResponse = await client.GetAsync($"{Address}/stats/summary");
+            string content = await validityResponse.Content.ReadAsStringAsync();
+
+            if (content.StartsWith("{\"error"))
+            {
+                Debug.WriteLine("LOGIN: Getting new SID");
+                var loginResponse = await client.PostAsJsonAsync($"{Address}/auth", new { password });
+                var content2 = await loginResponse.Content.ReadAsStringAsync();
+
+                Debug.WriteLine("LOGIN: Got new SID + "+ content2);
+
+                dynamic result = JsonConvert.DeserializeObject<dynamic>(content2)!;
+                SID = result.session.sid;
+                Debug.WriteLine("LOGIN: new sid: " + SID);
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("User-Agent", $"Pi-hole tray");
+                client.DefaultRequestHeaders.Add("sid", SID);
+                await  Login(Password, client);
+            }
+            else
+            {
+                Debug.WriteLine("LOGIN: Successful login: " + SID);
+            }
+
+            Debug.WriteLine($"--------------------------------\n");
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine($"LOGIN: ERROR: {e.Message}");
+        }
+    }
 
     public string GetKeyLocation()
     {
@@ -89,21 +197,23 @@ public class Instance {
 
 
 public class InstanceStorage {
+
     public List<Instance> Instances  = new List<Instance>();
-  
-    
+
     public void WriteInstanceToKey(Instance instance)
     {
         try
         {
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(instance.GetKeyLocation()))
-            {
-                
+            {            
                     key.SetValue("API_KEY", instance.API_KEY ?? "");
                     key.SetValue("Name", instance.Name ?? "");
                     key.SetValue("Address", instance.Address ?? "");
                     key.SetValue("Order", instance.Order!) ;
-                    key.SetValue("IsDefault", instance.IsDefault!);
+                    key.SetValue("IsDefault", instance.IsDefault ?? false);
+                    key.SetValue("isV6", instance.isV6 ?? false);
+                    key.SetValue("Password", instance.Password ?? "");
+                    key.SetValue("SID", instance.SID ?? "");
             }
         }
         catch { }
@@ -157,40 +267,47 @@ public class InstanceStorage {
                                 // Read all values under the current subkey
                                 foreach (var valueName in instanceKey.GetValueNames())
                                 {
-                                 //   Debug.WriteLine($"values:::: {valueName}");
                                     object value = instanceKey.GetValue(valueName)!;
 
                                     switch (valueName)
                                     {
                                         case "API_KEY":
-                                            temp.API_KEY = (string)value;
-                                            Debug.WriteLine($"API_KEY added\t{valueName}");
+                                            temp.API_KEY = value.ToString();
+                                            Debug.WriteLine($"API_KEY added\t{temp.API_KEY}");
                                             break;
 
                                         case "Name":
                                             temp.Name = (string)value;
-                                            Debug.WriteLine($"Name added\t{valueName}");
+                                            Debug.WriteLine($"Name added\t{temp.Name}");
                                             break;
 
                                         case "Address":
                                             temp.Address = (string)value;
-                                            Debug.WriteLine($"Address added\t{valueName}");
+                                            Debug.WriteLine($"Address added\t{temp.Address}");
                                             break;
 
                                         case "Order":
                                             temp.Order = Int32.Parse(value.ToString());
-                                            Debug.WriteLine($"Order added\t{valueName}");
+                                            Debug.WriteLine($"Order added\t{temp.Order.ToString()}");
                                             break;
-                                         
-                                        case "IsDefault": 
-                                            temp.IsDefault = bool.Parse( value.ToString());
-                                            Debug.WriteLine($"IsDefault added\t{valueName}");
 
+                                        case "IsDefault":
+                                            temp.IsDefault = bool.Parse(value.ToString());
+                                            Debug.WriteLine($"IsDefault added\t{temp.IsDefault}");
                                             break;
-                                        
+                                        case "isV6":
+                                            temp.isV6 = bool.Parse(value.ToString());
+                                            Debug.WriteLine($"isV6 added\t{temp.isV6}");
+                                            break;
+                                        case "Password":
+                                            temp.Password = (string)value;
+                                            Debug.WriteLine($"Password added\t{temp.Password}");
+                                            break;
+                                        case "SID":
+                                            temp.SID = (string)value;
+                                            Debug.WriteLine($"SID added\t{temp.SID}");
+                                            break;
                                         default:
-                                            Debug.WriteLine($"wtf: {valueName}");
-
                                             break;
                                     }
                                 }
@@ -198,13 +315,10 @@ public class InstanceStorage {
                             }
                             else
                             {
-                                Debug.WriteLine("instance not valid fuck");
-
+                                Debug.WriteLine("instance not valid");
                             }
                         }
                     }
-                    Debug.WriteLine($"count of i: {Instances.Count}");
-                    Debug.WriteLine($"count of x: {Instances.Count()}");
                 }
             }
         }
