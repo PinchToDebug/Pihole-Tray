@@ -1,4 +1,4 @@
-# Unofficial Pi-hole [V5] tray monitor for Windows
+# Unofficial Pi-hole tray monitor for Windows
 **Pihole Tray** is a system tray application for Windows that allows you to manage your Pi-hole instance(s) directly from your desktop. Easily toggle blocking and check statistics without needing to access the web interface.
 
 ## ✨ Features
@@ -10,7 +10,7 @@
 - It can be pinned
 - Option to start on login
 - Support for multiple instances *(Click on "Status:" to add more instances)*
-
+- Supports **Pihole V5 and V6**
 ## Screenshots
 
 <div style="display: flex;">
@@ -20,8 +20,6 @@
 </div>
 
 ## 🚀 Planned features
-
-- Pi-hole V6 support
 - "View all" menu for aggregated statistics
 - Instance modifying, deleting
 
