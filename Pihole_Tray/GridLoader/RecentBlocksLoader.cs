@@ -8,11 +8,11 @@ public class QueriesType {
     public string DomainName { get; set; }
 }
 
-public class QueriesLoader
+public class RecentBlocksLoader
 {
 
 
-    public async Task LoadAsync(ItemsControl itemsControl, JArray arr)
+    public async Task LoadAsync(ItemsControl itemsControl, JArray arr, bool isV6)
     {
         await Task.Run(() =>
         {
@@ -32,26 +32,45 @@ public class QueriesLoader
             }
             try
             {
-
-
-                foreach (var item in arr)
+               
+                if (isV6)
                 {
-                    var time = DateTimeOffset.FromUnixTimeSeconds((long)item["time"]).ToLocalTime().ToString("HH:mm:ss");
-                    var domainName = item["domain"].ToString();
-
-                    items.Add(new QueriesType
+                    foreach (var item in arr)
                     {
-                        Time = time,
-                        DomainName = domainName
-                    });
+                        var time = DateTimeOffset.FromUnixTimeSeconds((long)item["time"]).ToLocalTime().ToString("HH:mm:ss");
+                        var domainName = item["domain"].ToString();
+
+                        items.Add(new QueriesType
+                        {
+                            Time = time,
+                            DomainName = domainName
+                        });
+                    }
                 }
+                else
+                {
+                    foreach (var item in arr)
+                    {
+                        if (item[4].ToString() != "1" && item[4].ToString() != "4") continue; // skipping if not blocked
+                        var time = DateTimeOffset.FromUnixTimeSeconds((long)item[0]).ToLocalTime().ToString("HH:mm:ss");
+                        var domainName = item[2].ToString();
+
+                        items.Add(new QueriesType
+                        {
+                            Time = time,
+                            DomainName = domainName
+                        });
+                    }
+                }
+
+
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     itemsControl.ItemsSource = items;
-
                 });
             }
+
             catch (Exception e)
             {
                 items.Add(new QueriesType

@@ -1,54 +1,89 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Diagnostics;
-using System.Globalization;
+﻿using System.Windows.Controls;
 using System.Windows;
-using System.Windows.Controls;
+using Newtonsoft.Json.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Media3D;
+using System.Globalization;
+using System.Diagnostics;
 using System.Windows.Media.Effects;
 
 
-public class upStreamsLoader
+public class QueryTypesLoader
 {
     bool isAnimating = false;
-    public async Task LoadAsync(Grid grid, JArray arr)
+
+    public async Task LoadAsync(Grid grid, JObject json, bool isV6)
     {
-        if (arr == null)
-        {
-            grid.Children.Clear();
-            grid.Children.Add(new TextBlock { Text = "Object is null" });
-            return;
-        }
+
         BrushConverter brushConverter = new BrushConverter();
         var newData = new Dictionary<string, string>();
         var existingRows = new Dictionary<int, (string type, string percentage)>();
         var elementsToUpdate = new Dictionary<int, string>();
+        if (json == null)
+        {
+            grid.Children.Clear();
+            grid.RowDefinitions.Clear();
+            grid.Children.Add(new TextBlock { Text = "Object is null" });
+            return;
+        }
 
         try
         {
-
-
-            await Task.Run(() =>
+            if (isV6)
             {
-                int count = 0;
-                foreach (var item in arr)
+                await Task.Run(() =>
                 {
-                    count += (int)item["count"]!;
-                }
-                foreach (var item in arr)
-                {
-                    var nameOfUpStreamSource = $"{item["name"]} | {item["ip"]}";
-
-                    double value = ((double)item["count"] / count) * 100;
-                    var percentage = value.ToString("F2", CultureInfo.InvariantCulture);
-                    if (percentage != "0.00") // If 0 don't add
+                    int count = 0;
+                    foreach (var type in json)
                     {
-                        newData[nameOfUpStreamSource] = percentage;
+                        count += (int)type.Value!;
                     }
-                }
 
-            });
+                    foreach (var type in json)
+                    {
+                        var typeOfRequest = type.Key;
+                        if (typeOfRequest == "A")
+                        {
+                            typeOfRequest = "A (IPv4)";
+                        }
+                        else if (typeOfRequest == "AAAA")
+                        {
+                            typeOfRequest = "AAAA (IPv6)";
+                        }
+                        double value = ((double)type.Value! / count) * 100;
 
+
+                        var percentage = value.ToString("F2", CultureInfo.InvariantCulture);
+                        if (percentage != "0.00") // If 0 don't add
+                        {
+                            newData[typeOfRequest] = percentage;
+                        }
+                    }
+
+                });
+            }
+            else
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var item in json)
+                    {
+                        var typeOfRequest = item.Key;
+
+                        if (double.TryParse(item.Value!.ToString().Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out var percentageValue))
+                        {
+                            var percentage = percentageValue.ToString("F2", CultureInfo.InvariantCulture);
+                            if (percentage != "0.00") // if 0 don't add
+                            {
+                                newData[typeOfRequest] = percentage;
+                            }
+                        }
+
+                    }
+                });
+            }
+          
 
 
             for (int i = 0; i < grid.RowDefinitions.Count; i++)
@@ -78,10 +113,22 @@ public class upStreamsLoader
                             else
                             {
                                 elementsToUpdate[i] = newPercentage;
+
                             }
+                            if (newPercentage != percentageText)
+                            {
+                                if (percentageBlock.IsMouseOver)
+                                {
+                                    elementsToUpdate[i] = $"{newPercentage} %";
+                                }
+                                else
+                                {
+                                    elementsToUpdate[i] = newPercentage;
+                                }
+                            }
+
                         }
                     }
-
                 }
             }
 
@@ -95,18 +142,22 @@ public class upStreamsLoader
                 {
                     percentageBlock.Text = newPercentage;
                     ApplyAnimation(percentageBlock: percentageBlock, newPercentage);
+
                 }
             }
-            var rowsToAdd = newData.Where(pair => !existingRows.Values.Any(row => row.type == pair.Key)).ToList();
-            
-            // Adding new rows
-            foreach (var (nameOfUpStreamSource, percentage) in rowsToAdd)
+
+            var rowsToAdd = newData
+                .Where(pair => !existingRows.Values.Any(row => row.type == pair.Key))
+                .ToList();
+
+            // adding new rows
+            foreach (var (typeOfRequest, percentage) in rowsToAdd)
             {
                 grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
 
-                var nameOfUpStreamSourceBlock = new TextBlock
+                var typeBlock = new TextBlock
                 {
-                    Text = nameOfUpStreamSource,
+                    Text = typeOfRequest,
                     FontSize = 13,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -114,6 +165,8 @@ public class upStreamsLoader
 
                 var percentageBlock = new TextBlock
                 {
+
+                    TextAlignment = TextAlignment.Right,
                     Text = percentage,
                     FontSize = 13,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -122,20 +175,22 @@ public class upStreamsLoader
                 };
 
 
+
                 ApplyAnimation(percentageBlock: percentageBlock, percentage);
 
 
-                Grid.SetColumn(nameOfUpStreamSourceBlock, 0);
-                Grid.SetRow(nameOfUpStreamSourceBlock, grid.RowDefinitions.Count - 1);
+
+                Grid.SetColumn(typeBlock, 0);
+                Grid.SetRow(typeBlock, grid.RowDefinitions.Count - 1);
 
                 Grid.SetColumn(percentageBlock, 1);
                 Grid.SetRow(percentageBlock, grid.RowDefinitions.Count - 1);
 
-                grid.Children.Add(nameOfUpStreamSourceBlock);
+                grid.Children.Add(typeBlock);
                 grid.Children.Add(percentageBlock);
             }
 
-            // Remove rows that are no longer in newData
+            // remove rows that are no longer in new data
             var rowsToRemove = existingRows
                 .Where(row => !newData.ContainsKey(row.Value.type))
                 .Select(row => row.Key)
@@ -143,9 +198,11 @@ public class upStreamsLoader
 
             foreach (var rowIndex in rowsToRemove.OrderByDescending(index => index))
             {
+                // remove row definition
                 var rowDefinition = grid.RowDefinitions[rowIndex];
                 grid.RowDefinitions.Remove(rowDefinition);
 
+                // remove elements in the row
                 var elementsToRemove = grid.Children
                     .OfType<UIElement>()
                     .Where(child => Grid.GetRow(child) == rowIndex)
@@ -165,7 +222,6 @@ public class upStreamsLoader
             return;
         }
 
-
         double MeasureTextWidth(string text, TextBlock textBlock)
         {
             var formattedText = new FormattedText(
@@ -180,9 +236,6 @@ public class upStreamsLoader
 
             return formattedText.WidthIncludingTrailingWhitespace;
         }
-
-
-
         void ApplyAnimation(TextBlock percentageBlock, string percentage)
         {
             var translateTransform = new TranslateTransform();
@@ -204,7 +257,7 @@ public class upStreamsLoader
                 percentageBlock.Width = newWidth;
                 var widthDifference = newWidth - originalWidth;
 
-                var slideBack = new DoubleAnimation(-widthDifference, 0, TimeSpan.FromMilliseconds(0));
+                var slideBack = new DoubleAnimation(0, 0, TimeSpan.FromMilliseconds(100));
                 percentageBlock.Text = newText;
 
                 slideBack.Completed += (s2, e2) =>
@@ -215,14 +268,16 @@ public class upStreamsLoader
             };
 
 
+
             percentageBlock.MouseLeave += (s, e) =>
             {
                 if (isAnimating)
                 {
+
                     translateTransform.BeginAnimation(TranslateTransform.XProperty, null);
                 }
 
-                var originalText = percentage;
+                var originalText = percentage.Replace(" %", ""); // Sometimes it gets stuck this helps with that
                 var originalWidth = MeasureTextWidth(originalText, percentageBlock);
                 var newText = $"{percentage} %";
                 var newWidth = MeasureTextWidth(newText, percentageBlock);
@@ -234,10 +289,10 @@ public class upStreamsLoader
                 {
                     percentageBlock.Text = originalText;
                     isAnimating = false;
+
                 };
                 translateTransform.BeginAnimation(TranslateTransform.XProperty, slideBack);
             };
         }
     }
 }
-

@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -7,14 +8,30 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 
 
-public class ForwardDestinationsLoader
+public class DnsRoutesLoader
 {
     bool isAnimating = false;
-    public async Task LoadAsync(Grid grid, JObject obj)
+    public async Task<Dictionary<string, string>> GetData(dynamic json)
     {
-        if (obj == null)
+        var dict = new Dictionary<string, string>(); // wip
+        await Task.Run(() =>
+        {
+            foreach (var item in json)
+            {
+                string key = item["name"]!.ToString();
+                string value = item["count"]!.ToString();
+                dict[key] = value;
+            }
+        });
+        return dict;
+    }
+
+    public async Task LoadAsync(Grid grid, dynamic json, bool isV6)
+    {
+        if (json == null)
         {
             grid.Children.Clear();
+            grid.RowDefinitions.Clear();
             grid.Children.Add(new TextBlock { Text = "Object is null" });
             return;
         }
@@ -25,24 +42,62 @@ public class ForwardDestinationsLoader
 
         try
         {
-
-
-            await Task.Run(() =>
+            if (isV6)
             {
-                foreach (var item in obj)
+
+                await Task.Run(() =>
                 {
-                    var typeOfDestination = item.Key.Split(':')[0].Replace("|", " | ");
-                    if (double.TryParse(item.Value.ToString().Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out var percentageValue))
+                    int count = 0;
+                    foreach (var item in (JArray)json)
                     {
-                        var percentage = percentageValue.ToString("F2", CultureInfo.InvariantCulture);
-                        if (percentage != "0.00") // if 0 don't add
+                        count += (int)item["count"]!;
+                    }
+                    foreach (var item in (JArray)json)
+                    {
+                        string nameOfUpStreamSource ="";
+                       
+                        if (string.IsNullOrEmpty(item["name"].ToString()))
                         {
-                            newData[typeOfDestination] = percentage;
+                            nameOfUpStreamSource = item["ip"].ToString();
+
+                        }
+                        else if(item["ip"].Contains("blocklist") || item["ip"].Contains("cached"))
+                        {
+                            nameOfUpStreamSource = $"{item["name"]} | {item["ip"]}";
+                        }
+                        else
+                        {
+                            nameOfUpStreamSource = item["name"].ToString();
+                        }
+                        double value = ((double)item["count"] / count) * 100;
+                        var percentage = value.ToString("F2", CultureInfo.InvariantCulture);
+                        if (percentage != "0.00") // If 0 don't add
+                        {
+                            newData[nameOfUpStreamSource] = percentage;
                         }
                     }
-                }
-            });
 
+                });
+            }
+
+            else
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var item in (JObject)json)
+                    {
+                        var typeOfDestination = item.Key.Split(':')[0].Replace("|", " | ");
+                        if (double.TryParse(item.Value.ToString().Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out var percentageValue))
+                        {
+                            var percentage = percentageValue.ToString("F2", CultureInfo.InvariantCulture);
+                            if (percentage != "0.00") // if 0 don't add
+                            {
+                                newData[typeOfDestination] = percentage;
+                            }
+                        }
+                    }
+                });
+            }
 
 
             for (int i = 0; i < grid.RowDefinitions.Count; i++)
@@ -89,20 +144,18 @@ public class ForwardDestinationsLoader
                 {
                     percentageBlock.Text = newPercentage;
                     ApplyAnimation(percentageBlock: percentageBlock, newPercentage);
-
                 }
             }
-
             var rowsToAdd = newData.Where(pair => !existingRows.Values.Any(row => row.type == pair.Key)).ToList();
-
-            // adding new rows
-            foreach (var (typeOfDestination, percentage) in rowsToAdd)
+            
+            // Adding new rows
+            foreach (var (nameOfUpStreamSource, percentage) in rowsToAdd)
             {
                 grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
 
-                var destinationBlock = new TextBlock
+                var nameOfUpStreamSourceBlock = new TextBlock
                 {
-                    Text = typeOfDestination,
+                    Text = nameOfUpStreamSource,
                     FontSize = 13,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -118,21 +171,20 @@ public class ForwardDestinationsLoader
                 };
 
 
-
                 ApplyAnimation(percentageBlock: percentageBlock, percentage);
 
 
-                Grid.SetColumn(destinationBlock, 0);
-                Grid.SetRow(destinationBlock, grid.RowDefinitions.Count - 1);
+                Grid.SetColumn(nameOfUpStreamSourceBlock, 0);
+                Grid.SetRow(nameOfUpStreamSourceBlock, grid.RowDefinitions.Count - 1);
 
                 Grid.SetColumn(percentageBlock, 1);
                 Grid.SetRow(percentageBlock, grid.RowDefinitions.Count - 1);
 
-                grid.Children.Add(destinationBlock);
+                grid.Children.Add(nameOfUpStreamSourceBlock);
                 grid.Children.Add(percentageBlock);
             }
 
-            // remove rows that are no longer in newData
+            // Remove rows that are no longer in newData
             var rowsToRemove = existingRows
                 .Where(row => !newData.ContainsKey(row.Value.type))
                 .Select(row => row.Key)
@@ -140,11 +192,9 @@ public class ForwardDestinationsLoader
 
             foreach (var rowIndex in rowsToRemove.OrderByDescending(index => index))
             {
-                // remove row definition
                 var rowDefinition = grid.RowDefinitions[rowIndex];
                 grid.RowDefinitions.Remove(rowDefinition);
 
-                // remove elements in the row
                 var elementsToRemove = grid.Children
                     .OfType<UIElement>()
                     .Where(child => Grid.GetRow(child) == rowIndex)
@@ -179,6 +229,7 @@ public class ForwardDestinationsLoader
 
             return formattedText.WidthIncludingTrailingWhitespace;
         }
+
 
 
         void ApplyAnimation(TextBlock percentageBlock, string percentage)
@@ -220,7 +271,7 @@ public class ForwardDestinationsLoader
                     translateTransform.BeginAnimation(TranslateTransform.XProperty, null);
                 }
 
-                var originalText = percentage;
+                var originalText = percentage.Replace(" %",""); // Sometimes it gets stuck this helps with that
                 var originalWidth = MeasureTextWidth(originalText, percentageBlock);
                 var newText = $"{percentage} %";
                 var newWidth = MeasureTextWidth(newText, percentageBlock);

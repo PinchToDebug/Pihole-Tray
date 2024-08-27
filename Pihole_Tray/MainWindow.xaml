@@ -239,7 +239,7 @@
 
                     <ui:MenuItem x:Name="OpenInBrowser_Button" Height="33" Icon="{ui:SymbolIcon Symbol=Link28}" Header="empty" Foreground="#FF549CE4" Click="OpenInBrowser_Button_Click" />
 
-                    <ui:MenuItem  Height="38" Header="Background"  Icon="{ui:SymbolIcon Symbol=ColorBackground20}" >
+                    <ui:MenuItem Name="BackgroundMenuItem" Height="38" Header="Background"  Icon="{ui:SymbolIcon Symbol=ColorBackground20}" >
                         <ui:ToggleSwitch Name="MicaBG"  Content="Mica effect"   IsChecked="False"  Click="ChangeBackground_Click"/>
                         <ui:ToggleSwitch Name="AcrylicBG"  Content="Acrylic effect"  IsChecked="False" Click="ChangeBackground_Click" />
                         <ui:ToggleSwitch Name="NoneBG" Content="No effect"  IsChecked="False" Click="ChangeBackground_Click" />

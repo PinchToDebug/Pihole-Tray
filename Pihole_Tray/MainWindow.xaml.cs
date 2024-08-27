@@ -17,28 +17,17 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shell;
+using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Interop;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
-using MessageBox = System.Windows.MessageBox;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
-
+using static Interop;
 namespace Pihole_Tray
 {
 
     public partial class MainWindow : FluentWindow
     {
-
-
-        [SecurityCritical]
-        [DllImport("dwmapi.dll", SetLastError = false, ExactSpelling = true)]
-        public static extern int DwmSetWindowAttribute(IntPtr hwnd, uint dwAttribute, IntPtr pvAttribute, int cbAttribute);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
         private readonly string apiUrl = "http://pi.hole/admin/api.php";
         private readonly string regKeyName = "Pihole_Tray";
@@ -52,7 +41,7 @@ namespace Pihole_Tray
         private bool isAnimating = false;
         private bool enterAnim = false;
         private bool leaveAnim = false;
-
+        private bool isWin11;
         private bool notifClickUpdateInfo = false;
 
         private CancellationTokenSource cancelToken;
@@ -76,7 +65,7 @@ namespace Pihole_Tray
         private JArray upStreams;
         private JObject queryTypes;
 
-
+        private RegistryHelper reg;
         Brush AddressBrush;
 
         private Slider DisableSlider;
@@ -119,11 +108,17 @@ namespace Pihole_Tray
             this.WindowStyle = WindowStyle.None;
 
             InitializeComponent();
-             AddressBrush = AddressTB.BorderBrush;
+            isWin11 = isWindows11();
+            if (!isWin11)
+            {
+                BackgroundMenuItem.Items.RemoveAt(0);
+            }
+            reg = new RegistryHelper(regKeyName);
+            AddressBrush = AddressTB.BorderBrush;
             NavHyperlinkButton.Visibility = Visibility.Collapsed;
             LoginV6.Visibility = Visibility.Collapsed;
             LoginV5.Visibility = Visibility.Collapsed;
-         //   ApiSaveBTN.Visibility = Visibility.Collapsed;
+            //   ApiSaveBTN.Visibility = Visibility.Collapsed;
 
             storage = new InstanceStorage();
             slider = new SliderValues();
@@ -144,13 +139,13 @@ namespace Pihole_Tray
             Default_StackPanel.Visibility = Visibility.Visible;
             Info_StackPanel.Visibility = Visibility.Hidden;
 
-            if (KeyExistsRoot("RecentBlocksTS")) RecentBlocksTS.IsChecked = (bool)ReadKeyValueRoot("RecentBlocksTS"); HideShowElementPairs(RecentBlockLBL, BlockHistoryCard, RecentBlocksTS);
-            if (KeyExistsRoot("QueryTS")) QueryTS.IsChecked = (bool)ReadKeyValueRoot("QueryTS"); HideShowElementPairs(QueryLBL, QueryCard, QueryTS); Debug.WriteLine(" ");
-            if (KeyExistsRoot("SourcesTS")) SourcesTS.IsChecked = (bool)ReadKeyValueRoot("SourcesTS"); HideShowElementPairs(SourcesLBL, SourcesCard, SourcesTS);
-            if (KeyExistsRoot("ForwardDestinationsTS")) ForwardDestinationsTS.IsChecked = (bool)ReadKeyValueRoot("ForwardDestinationsTS"); HideShowElementPairs(ForwardDestinationsLBL, ForwardDestinationsCard, ForwardDestinationsTS);
-            if (KeyExistsRoot("Background"))
+            if (reg.KeyExistsRoot("RecentBlocksTS")) RecentBlocksTS.IsChecked = (bool)reg.ReadKeyValueRoot("RecentBlocksTS"); HideShowElementPairs(RecentBlockLBL, BlockHistoryCard, RecentBlocksTS);
+            if (reg.KeyExistsRoot("QueryTS")) QueryTS.IsChecked = (bool)reg.ReadKeyValueRoot("QueryTS"); HideShowElementPairs(QueryLBL, QueryCard, QueryTS); Debug.WriteLine(" ");
+            if (reg.KeyExistsRoot("SourcesTS")) SourcesTS.IsChecked = (bool)reg.ReadKeyValueRoot("SourcesTS"); HideShowElementPairs(SourcesLBL, SourcesCard, SourcesTS);
+            if (reg.KeyExistsRoot("ForwardDestinationsTS")) ForwardDestinationsTS.IsChecked = (bool)reg.ReadKeyValueRoot("ForwardDestinationsTS"); HideShowElementPairs(ForwardDestinationsLBL, ForwardDestinationsCard, ForwardDestinationsTS);
+            if (reg.KeyExistsRoot("Background"))
             {
-                switch ((string)ReadKeyValueRoot("Background"))
+                switch ((string)reg.ReadKeyValueRoot("Background"))
                 {
                     case "Mica":
                         MicaBG.IsChecked = true;
@@ -171,12 +166,7 @@ namespace Pihole_Tray
             }
 
 
-
-
-
-
-
-            if (KeyExistsRoot("startOnLogin")) startOnLogin = (bool)ReadKeyValueRoot("startOnLogin");
+            if (reg.KeyExistsRoot("startOnLogin")) startOnLogin = (bool)reg.ReadKeyValueRoot("startOnLogin");
 
             Autorun_Button.IsChecked = startOnLogin;
 
@@ -224,7 +214,10 @@ namespace Pihole_Tray
 
         }
 
-
+        private bool isWindows11()
+        {
+            return FileVersionInfo.GetVersionInfo("C:\\Windows\\System32\\kernel32.dll").FileBuildPart >= 22000;
+        }
         private void OnAnimationCompleted()
         {
             canResize = true;
@@ -303,7 +296,7 @@ namespace Pihole_Tray
                 if (coldRun) this.Top = (int)SystemParameters.PrimaryScreenHeight;
                 Debug.WriteLine("v6 status: " + instance.isV6);
                 selectedInstance = instance;
-               
+
                 if (!string.IsNullOrEmpty(ApiTB.Text))
                 {
                     Debug.WriteLine("using key from TB");
@@ -321,8 +314,8 @@ namespace Pihole_Tray
                     {
                         if (instance.isV6 == true)
                         {
-                           await instance.Login(instance.Password, httpClient);
-                           storage.WriteInstanceToKey(instance);
+                            await instance.Login(instance.Password, httpClient);
+                            storage.WriteInstanceToKey(instance);
 
                         }
                         else
@@ -361,7 +354,7 @@ namespace Pihole_Tray
                                 pingFailed = true;
                                 contentDialog.SetCurrentValue(ContentDialog.TitleProperty, $"Couldn't reach host");
                                 contentDialog.SetCurrentValue(ContentControl.ContentProperty, "Maybe DNS is not configured properly.");
-                                if (KeyExists("API_KEY", instance))
+                                if (reg.KeyExists("API_KEY", instance))
                                 {
                                     LoginBTN.Visibility = Visibility.Visible;
 
@@ -376,9 +369,9 @@ namespace Pihole_Tray
 
                         Debug.WriteLine($"ERROR: {ex.Message}");
                         this.Top = (int)SystemParameters.WorkArea.Bottom - this.Height - 12;
-                       await contentDialog.ShowAsync();
+                        await contentDialog.ShowAsync();
 
-                       return;
+                        return;
                     }
 
 
@@ -396,15 +389,11 @@ namespace Pihole_Tray
                     Info_StackPanel.Visibility = Visibility.Visible;
                     notifClickUpdateInfo = false;
                 }
-             
+
                 Debug.WriteLine("Connected successfully!");
 
-                // V5
                 dynamic summary = new ExpandoObject();
-
-                // V6
                 dynamic status = new ExpandoObject();
-                dynamic summaryV6 = new ExpandoObject();
 
 
                 //if (coldRun)
@@ -414,7 +403,7 @@ namespace Pihole_Tray
                 //}
 
                 bool showEffect = true;
-                bool blurCard = true;
+                //bool blurCard = true;
                 dynamic response;
 
                 while (true)
@@ -457,8 +446,8 @@ namespace Pihole_Tray
                         await Task.Delay(50, token);
                         if (instance.isV6 == true)
                         {
-                           
-                            summaryV6 = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/summary"))!;
+
+                            summary = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/summary"))!;
                             await Task.Delay(50, token);
 
                             status = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/dns/blocking"))!;
@@ -468,7 +457,7 @@ namespace Pihole_Tray
                             if ((bool)RecentBlocksTS.IsChecked!)
                             {
                                 response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/queries?length=100&upstream=blocklist"));
-                                blocked = (JArray)response.queries; 
+                                blocked = (JArray)response.queries;
                                 await Task.Delay(50, token);
 
                             }
@@ -491,7 +480,7 @@ namespace Pihole_Tray
                                 response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync($"{instance.Address}/stats/query_types"));
                                 queryTypes = (JObject)response.types;
                             }
-                          
+
                         }
 
                         else
@@ -523,21 +512,22 @@ namespace Pihole_Tray
                             }
                             if ((bool)QueryTS.IsChecked!)
                             {
-                            
+
                                 response = JsonConvert.DeserializeObject<dynamic>(await httpClient.GetStringAsync(instance.Address + "?getQueryTypes&auth=" + instance.API_KEY))!;
-                                querytypes = (JObject)response.querytypes;                        
+                                querytypes = (JObject)response.querytypes;
                             }
 
                             DnsQueryTB.Text = summary.dns_queries_all_types;
                         }
-                       
+
 
                         ContentGrid.Effect = null;
                         showEffect = true;
                         LostConnectionGrid.Visibility = Visibility.Hidden;
                     }
-                    catch (TaskCanceledException to) {
-                        
+                    catch (TaskCanceledException to)
+                    {
+
                         //Debug.WriteLine("ERROR 3: " + to.Message);
                         //if (showEffect && token != null)
                         //{
@@ -584,74 +574,59 @@ namespace Pihole_Tray
                         continue;
                     }
 
+                    token.ThrowIfCancellationRequested();
 
                     if (instance.isV6 == true)
                     {
-                        token.ThrowIfCancellationRequested();
                         GravityLB.Visibility = Visibility.Collapsed;
                         GravityTB.Visibility = Visibility.Collapsed;
                         GravityRow.Height = new GridLength(0.0);
                         try // Temp solution
                         {
-                            AdsBlockedTB.Text = string.Format("{0:N0}", summaryV6.queries.blocked);
-                            DnsQueryTB.Text = string.Format("{0:N0}", summaryV6.queries.total);
-                            DomainsBlockedTB.Text = string.Format("{0:N0}", summaryV6.gravity.domains_being_blocked);
+                            AdsBlockedTB.Text = string.Format("{0:N0}", summary.queries.blocked);
+                            DnsQueryTB.Text = string.Format("{0:N0}", summary.queries.total);
+                            DomainsBlockedTB.Text = string.Format("{0:N0}", summary.gravity.domains_being_blocked);
                         }
-                        catch 
+                        catch
                         {
                             Debug.WriteLine("String formatting failed");
-                            AdsBlockedTB.Text = summaryV6.queries.blocked;
-                            DnsQueryTB.Text = summaryV6.queries.total;
-                            DomainsBlockedTB.Text = summaryV6.gravity.domains_being_blocked;
+                            AdsBlockedTB.Text = summary.queries.blocked;
+                            DnsQueryTB.Text = summary.queries.total;
+                            DomainsBlockedTB.Text = summary.gravity.domains_being_blocked;
                         }
-                     
+
                         StatusTB.Text = status.blocking;
                         if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
                         else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
 
-                        if ((bool)RecentBlocksTS.IsChecked) await new QueriesLoader().LoadAsync(BlockHistoryItemsControl, blocked);
-                        if ((bool)SourcesTS.IsChecked) await new TopClients().LoadAsync(SourcesItemsControl, topClients);
-                        //if ((bool)ForwardDestinationsTS.IsChecked)
-                            await new upStreamsLoader().LoadAsync(ForwardDestinationsGrid, upStreams);
-                        if ((bool)QueryTS.IsChecked) await new TypesLoader().LoadAsync(QueryTypesGrid, queryTypes);
+                        if ((bool)RecentBlocksTS.IsChecked) await new RecentBlocksLoader().LoadAsync(BlockHistoryItemsControl, blocked, (bool)instance.isV6);
+                        if ((bool)SourcesTS.IsChecked) await new SourcesLoader().LoadAsync(SourcesItemsControl, topClients, (bool)instance.isV6);
+                        if ((bool)ForwardDestinationsTS.IsChecked) await new DnsRoutesLoader().LoadAsync(ForwardDestinationsGrid, upStreams, (bool)instance.isV6);
+                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, queryTypes,(bool)instance.isV6);
                         token.ThrowIfCancellationRequested();
                     }
                     else
                     {
-                        token.ThrowIfCancellationRequested();
                         GravityLB.Visibility = Visibility.Visible;
                         GravityTB.Visibility = Visibility.Visible;
                         GravityRow.Height = new GridLength(22.0);
                         AdsBlockedTB.Text = summary.ads_blocked_today;
                         GravityTB.Text = $"{(summary.gravity_last_updated.relative.days > 0 ? summary.gravity_last_updated.relative.days + "d" : string.Empty)} " + $"{(summary.gravity_last_updated.relative.hours > 0 ? summary.gravity_last_updated.relative.hours + "h" : string.Empty)} " + $"{(summary.gravity_last_updated.relative.minutes > 0 ? summary.gravity_last_updated.relative.minutes + "m" : string.Empty)}".Replace("  ", " ");
                         DomainsBlockedTB.Text = summary.domains_being_blocked;
+
                         StatusTB.Text = summary.status;
                         if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
                         else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
 
-                        if ((bool)RecentBlocksTS.IsChecked) await new AllQueriesLoader().LoadAsync(BlockHistoryItemsControl, queries_data);
-                        if ((bool)SourcesTS.IsChecked) await new QuerySourcesLoader().LoadAsync(SourcesItemsControl, topSources);
-                        if ((bool)ForwardDestinationsTS.IsChecked) await new ForwardDestinationsLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations);
-                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes);
+                        if ((bool)RecentBlocksTS.IsChecked) await new RecentBlocksLoader().LoadAsync(BlockHistoryItemsControl, queries_data, (bool)instance.isV6);
+                        if ((bool)SourcesTS.IsChecked) await new SourcesLoader().LoadAsync(SourcesItemsControl, topSources, (bool)instance.isV6);
+                        if ((bool)ForwardDestinationsTS.IsChecked) await new DnsRoutesLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations, (bool)instance.isV6);
+                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes, (bool)instance.isV6);
                         token.ThrowIfCancellationRequested();
                     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-                   
-                    if (apiSaveCalled )
+                    if (apiSaveCalled)
                     {
                         bool shouldWrite = true;
                         foreach (Instance i in storage.Instances)
@@ -664,7 +639,7 @@ namespace Pihole_Tray
 
                         if (shouldWrite) // if name isnt contained
                         {
-                          //  selectedInstance = instance;
+                            //  selectedInstance = instance;
                             if ((bool)setDefaultTS.IsChecked)
                             {
                                 foreach (var i in storage.Instances)
@@ -680,7 +655,7 @@ namespace Pihole_Tray
                         }
                         apiSaveCalled = false;
                     }
-                  
+
 
 
                     if (canResize /*&& !BlockHistoryCard.IsMouseOver*/)
@@ -694,13 +669,13 @@ namespace Pihole_Tray
                         else this.Top = (int)SystemParameters.WorkArea.Bottom - this.Height - 12;
                     }
 
-               
+
                     if (coldRun)
                     {
                         coldRun = false;
-                        
-                       // this.Visibility = Visibility.Hidden;
-                         await Task.Delay(50, token);
+
+                        // this.Visibility = Visibility.Hidden;
+                        await Task.Delay(50, token);
                         continue;
                     }
                     await Task.Delay(1000, token);
@@ -785,9 +760,6 @@ namespace Pihole_Tray
 
             }
         }
-
-
-
 
 
 
@@ -877,196 +849,12 @@ namespace Pihole_Tray
             int style = GetWindowLong(hwnd, GWL_STYLE);
             int newStyle = style & ~WS_CAPTION;
 
-            SetWindowLong(hwnd, GWL_STYLE, style & ~WS_CAPTION); // removes the animations from the window
-
-
+            SetWindowLong(hwnd, GWL_STYLE, style & ~WS_CAPTION); // Removes the opening and closing animation
         }
 
 
 
-
-
-        private void AddToAutoRun(string appName, string appPath)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true)!)
-                {
-                    key.SetValue(appName, appPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error adding to autorun: " + ex.Message);
-            }
-        }
-        private void WriteToRegistry(string keyName, object value, Instance instance)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(instance.GetKeyLocation()))
-                {
-                    key.SetValue(keyName, value);
-                }
-            }
-            catch { }
-
-        }
-        private void WriteToRegistryRoot(string keyName, object value)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey($"SOFTWARE\\{regKeyName}"))
-                {
-                    key.SetValue(keyName, value);
-                }
-            }
-            catch { }
-        }
-        private void RemoveFromAutoRun(string appName)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true)!)
-                {
-                    key.DeleteValue(appName, false);
-                }
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error removing from autorun: " + ex.Message);
-            }
-        }
-        private object ReadKeyValue(string keyName, Instance instance)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(instance.GetKeyLocation())!)
-                {
-                    if (key != null)
-                    {
-                        object value = key.GetValue(keyName)!;
-                        if (value != null)
-                        {
-                            if (value is bool)
-                            {
-                                Debug.WriteLine($"returned bool for {keyName}");
-                                return (bool)value;
-                            }
-                            else if (bool.TryParse(value.ToString(), out bool boolValue))
-                            {
-                                Debug.WriteLine($"returned Parsed bool for {keyName}");
-                                return boolValue;
-                            }
-                            else
-                            {
-                                Debug.WriteLine($"returned string for {keyName}");
-                                return (string)value;
-                            }
-
-                        }
-                    }
-                }
-                Debug.WriteLine($"couldn't return for {keyName}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error reading key: " + ex.Message);
-                return false;
-            }
-        }
-        private object ReadKeyValueRoot(string keyName)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey($"SOFTWARE\\{regKeyName}")!)
-                {
-                    if (key != null)
-                    {
-                        object value = key.GetValue(keyName)!;
-                        if (value != null)
-                        {
-                            if (value is bool)
-                            {
-                                Debug.WriteLine($"returned bool for {keyName}");
-                                return (bool)value;
-                            }
-                            else if (bool.TryParse(value.ToString(), out bool boolValue))
-                            {
-                                Debug.WriteLine($"returned Parsed bool for {keyName}");
-                                return boolValue;
-                            }
-                            else
-                            {
-                                Debug.WriteLine($"returned string for {keyName}");
-                                return (string)value;
-                            }
-
-                        }
-                    }
-                }
-                Debug.WriteLine($"couldn't return for {keyName}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error reading key: " + ex.Message);
-                return false;
-            }
-        }
-        private bool KeyExists(string keyName, Instance instance)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(instance.GetKeyLocation())!)
-                {
-                    if (key != null)
-                    {
-                        if (key.GetValue(keyName) != null)
-                        {
-                            Debug.WriteLine($"exists: {keyName},{key.GetValue(keyName)}");
-
-                            return true;
-                        }
-                    }
-                }
-                Debug.WriteLine($"doesnt exist: {keyName}");
-                return false;
-            }
-            catch
-            {
-                Debug.WriteLine($"error opening HKCU\\SOFTWARE\\{regKeyName}, {keyName}");
-                return false;
-            }
-        }
-
-        private bool KeyExistsRoot(string keyName)
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey($"SOFTWARE\\{regKeyName}")!)
-                {
-                    if (key != null)
-                    {
-                        if (key.GetValue(keyName) != null)
-                        {
-                            Debug.WriteLine($"exists: {keyName},{key.GetValue(keyName)}");
-
-                            return true;
-                        }
-                    }
-                }
-                Debug.WriteLine($"doesnt exist: {keyName}");
-                return false;
-            }
-            catch
-            {
-                Debug.WriteLine($"error opening HKCU\\SOFTWARE\\{regKeyName}, {keyName}");
-                return false;
-            }
-        }
+    
 
 
 
@@ -1076,13 +864,13 @@ namespace Pihole_Tray
             System.Windows.Application.Current.Shutdown();
         }
 
-        private void Exit_Button_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        private void Exit_Button_MouseEnter(object sender, MouseEventArgs e)
         {
             Exit_Button.Foreground = new SolidColorBrush(Color.FromArgb(255, 254, 107, 107));
 
         }
 
-        private void Exit_Button_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        private void Exit_Button_MouseLeave(object sender, MouseEventArgs e)
         {
             Exit_Button.Foreground = Brushes.White;
         }
@@ -1093,14 +881,13 @@ namespace Pihole_Tray
             if (Autorun_Button.IsChecked)
             {
 
-                AddToAutoRun(regKeyName, Process.GetCurrentProcess().MainModule!.FileName);
+                reg.AddToAutoRun(regKeyName, Process.GetCurrentProcess().MainModule!.FileName);
             }
             else
             {
-
-                RemoveFromAutoRun(regKeyName);
+                reg.RemoveFromAutoRun(regKeyName);
             }
-            WriteToRegistryRoot("startOnLogin", Autorun_Button.IsChecked);
+           reg.WriteToRegistryRoot("startOnLogin", Autorun_Button.IsChecked);
         }
 
         private async void OpenInBrowser_Button_Click(object sender, RoutedEventArgs e)
@@ -1117,7 +904,7 @@ namespace Pihole_Tray
                 }
                 else
                 {
-                   url = url.Replace("/admin/api.php", "");
+                    url = url.Replace("/admin/api.php", "");
 
                 }
                 ProcessStartInfo sInfo = new ProcessStartInfo($"{url}/admin") { UseShellExecute = true };
@@ -1183,13 +970,13 @@ namespace Pihole_Tray
             {
                 label.Visibility = Visibility.Visible;
                 card.Visibility = Visibility.Visible;
-                WriteToRegistryRoot(ts.Name, ts.IsChecked);
+                reg.WriteToRegistryRoot(ts.Name, ts.IsChecked);
             }
             else
             {
                 label.Visibility = Visibility.Collapsed;
                 card.Visibility = Visibility.Collapsed;
-                WriteToRegistryRoot(ts.Name, ts.IsChecked);
+                reg.WriteToRegistryRoot(ts.Name, ts.IsChecked);
             }
             Resize();
         }
@@ -1256,7 +1043,7 @@ namespace Pihole_Tray
                 HttpResponseMessage response;
                 if (selectedInstance.isV6 == true)
                 {
-                    response = await httpClient.PostAsJsonAsync($"{selectedInstance.Address}/dns/blocking",new { blocking = false, timer = data.Item2 });
+                    response = await httpClient.PostAsJsonAsync($"{selectedInstance.Address}/dns/blocking", new { blocking = false, timer = data.Item2 });
                 }
                 else
                 {
@@ -1344,7 +1131,7 @@ namespace Pihole_Tray
                 InstanceContextMenu.Items.Add(allView);
                 InstanceContextMenu.Items.Add(new Separator());
             }
-            
+
         Skip:
 
 
@@ -1396,7 +1183,7 @@ namespace Pihole_Tray
 
             };
             AddButton.Click += Addbutton_Click;
-            if (storage.Instances.Count >1)
+            if (storage.Instances.Count > 1)
             {
                 InstanceContextMenu.Items.Add(new Separator());
 
@@ -1441,7 +1228,7 @@ namespace Pihole_Tray
                                             menuItem.Click -= InstanceSelected_Click;
                                             if (instance.isV6 == true)
                                             {
-                                                menuItem.ToolTip = "Address reachable, but API inaccessible.\nLikely the password is incorrect";
+                                                menuItem.ToolTip = "Address reachable, but API inaccessible.\nLikely the password is incorrect.";
                                             }
                                             else
                                             {
@@ -1474,9 +1261,8 @@ namespace Pihole_Tray
             }
 
         }
-        private void ClearElements()
+        private async void ClearElements()
         {
-
             BlockHistoryItemsControl.ItemsSource = null;
             SourcesItemsControl.ItemsSource = null;
             ForwardDestinationsGrid.Children.Clear();
@@ -1534,7 +1320,7 @@ namespace Pihole_Tray
             }
         }
 
-        private void BackButton_Click(object sender, RoutedEventArgs e) //TODO: rename it
+        private void BackButton_Click(object sender, RoutedEventArgs e) 
         {
             stopUpdatingInfo = false;
             if (cancelToken != null)
@@ -1615,6 +1401,7 @@ namespace Pihole_Tray
 
                 if (ts.Name == "MicaBG")
                 {
+
                     this.WindowBackdropType = WindowBackdropType.Mica;
                     MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#0CFFFFFF");
                 }
@@ -1622,6 +1409,29 @@ namespace Pihole_Tray
                 {
                     this.WindowBackdropType = WindowBackdropType.Acrylic;
                     MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#B2101010");
+                    if (!isWin11)
+                    {
+                        var windowHelper = new WindowInteropHelper(this);
+                        var accentPolicy = new AccentPolicy
+                        {
+                            AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND,
+                            GradientColor = unchecked((int)0x330C0C0C)
+                        };
+
+                        var accentStructSize = Marshal.SizeOf(accentPolicy);
+                        var accentPtr = Marshal.AllocHGlobal(accentStructSize);
+                        Marshal.StructureToPtr(accentPolicy, accentPtr, false);
+
+                        var data = new WindowCompositionAttributeData
+                        {
+                            Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY,
+                            SizeOfData = accentStructSize,
+                            Data = accentPtr
+                        };
+
+                        SetWindowCompositionAttribute(windowHelper.Handle, ref data);
+                        Marshal.FreeHGlobal(accentPtr);
+                    }    
                 }
                 else
                 {
@@ -1644,13 +1454,13 @@ namespace Pihole_Tray
                 // ClearElements();
                 UpdateInfo(selectedInstance, cancelToken.Token);
 
-                WriteToRegistryRoot("Background", ts.Name.Replace("BG", ""));
+                reg.WriteToRegistryRoot("Background", ts.Name.Replace("BG", ""));
             }
         }
 
         private void fluentWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            if (FileVersionInfo.GetVersionInfo("C:\\Windows\\System32\\kernel32.dll").FileBuildPart >= 22000) // Makes sure it doesn't change on Windows 10 as it crashes the program
+            if (isWin11) // Makes sure it doesn't change on Windows 10 as it crashes the program
             {
                 var hwnd = new WindowInteropHelper(this).Handle;
                 var attribute = GCHandle.Alloc((uint)4, GCHandleType.Pinned);
@@ -1661,6 +1471,32 @@ namespace Pihole_Tray
                     Debug.WriteLine("Couldn't change DWM");
                 }
             }
+            else if (AcrylicBG.IsChecked == true) // Windows 10 Acrylic effect
+            {
+
+                var windowHelper = new WindowInteropHelper(this);
+                var accentPolicy = new AccentPolicy
+                {
+                    AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND,
+                    GradientColor = unchecked((int)0x330C0C0C)
+                };
+
+                var accentStructSize = Marshal.SizeOf(accentPolicy);
+                var accentPtr = Marshal.AllocHGlobal(accentStructSize);
+                Marshal.StructureToPtr(accentPolicy, accentPtr, false);
+
+                var data = new WindowCompositionAttributeData
+                {
+                    Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY,
+                    SizeOfData = accentStructSize,
+                    Data = accentPtr
+                };
+
+                SetWindowCompositionAttribute(windowHelper.Handle, ref data);
+                Marshal.FreeHGlobal(accentPtr);
+            }
+         
+
         }
 
         private void SelectOtherInstnaceBTN_Click(object sender, RoutedEventArgs e)
@@ -1773,9 +1609,9 @@ namespace Pihole_Tray
                 AddressTB.BorderBrush = AddressBrush;
                 LoginV6.Visibility = Visibility.Collapsed;
                 LoginV5.Visibility = Visibility.Visible;
-                ApiSaveBTN.Content = "Save and use API key";        
+                ApiSaveBTN.Content = "Save and use API key";
                 ApiSaveBTN.Visibility = Visibility.Visible;
-                AddressLB.Text = "V5 API address:";             
+                AddressLB.Text = "V5 API address:";
 
                 NavHyperlinkButton.NavigateUri = AddressTB.Text.Replace("/api.php", "/settings.php?tab=api");
                 NavHyperlinkButton.Content = string.IsNullOrEmpty(NavHyperlinkButton.NavigateUri) ? "API url not available" : "Link to get the API key";
@@ -1793,8 +1629,8 @@ namespace Pihole_Tray
                 AddressLB.Text = "V6 API address:";
 
             }
-            else if (!string.IsNullOrEmpty( AddressTB.Text))
-            {  
+            else if (!string.IsNullOrEmpty(AddressTB.Text))
+            {
 
                 AddressTB.BorderBrush = (Brush)new BrushConverter().ConvertFrom("#B2FF5252");
                 NavHyperlinkButton.Visibility = Visibility.Collapsed;
@@ -1806,7 +1642,7 @@ namespace Pihole_Tray
                 AddressTB.BorderBrush = AddressBrush;
             }
         }
-        
+
         private async void Default_StackPanel_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (Default_StackPanel.Visibility == Visibility.Visible)
@@ -1819,7 +1655,7 @@ namespace Pihole_Tray
                     ApiSaveBTN.Content = "Save and use API key";
                     ApiSaveBTN.Visibility = Visibility.Visible;
                     AddressLB.Text = "V5 API address:";
-                              NavHyperlinkButton.Visibility = Visibility.Visible;
+                    NavHyperlinkButton.Visibility = Visibility.Visible;
                 }
 
                 else if (AddressTB.Text.EndsWith("/api") && !AddressTB.Text.EndsWith("admin/api") && (AddressTB.Text.StartsWith("https://") | AddressTB.Text.StartsWith("http://")))
@@ -1831,11 +1667,10 @@ namespace Pihole_Tray
                     NavHyperlinkButton.Visibility = Visibility.Collapsed;
                     ApiSaveBTN.Visibility = Visibility.Visible;
                     AddressLB.Text = "V6 API address:";
-
                 }
                 else
                 {
-                    AddressTB.BorderBrush = AddressBrush;          
+                    AddressTB.BorderBrush = AddressBrush;
                 }
             }
         }
