@@ -11,6 +11,8 @@
 - Option to start on login
 - Support for multiple instances *(Click on "Status:" to add more instances)*
 - Supports **Pihole V5 and V6**
+- Dark and light mode
+
 ## Screenshots
 
 <div style="display: flex;">
