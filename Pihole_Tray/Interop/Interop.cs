@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 public static class Interop
 {
+
+    [DllImport("UXTheme.dll", SetLastError = true, EntryPoint = "#138")]
+    public static extern bool ShouldSystemUseDarkMode();
     [SecurityCritical]
     [DllImport("dwmapi.dll", SetLastError = false, ExactSpelling = true)]
     public static extern int DwmSetWindowAttribute(IntPtr hwnd, uint dwAttribute, IntPtr pvAttribute, int cbAttribute);

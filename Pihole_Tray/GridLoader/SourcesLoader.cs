@@ -2,24 +2,28 @@
 using System.Windows;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
+using System.Windows.Media;
 
 public class SourceType
 {
     public string Device { get; set; }
     public string IPAddress { get; set; }
     public string RequestCount { get; set; }
+    public Brush IpBrush { get; set; }
+    public Brush BlueBrush { get; set; }
+
 }
 
 public class SourcesLoader
 {
-    public async Task LoadAsync(ItemsControl itemsControl, dynamic json, bool isV6)
+    public async Task LoadAsync(ItemsControl itemsControl, dynamic json, bool isV6, Brush ipBrush, Brush blueBrush)
     {
         var items = new List<SourceType>();
         await Task.Run(() =>
         {
             try
             {
-
+              
                 if (isV6)
                 {
                     foreach (var item in (JArray)json)
@@ -42,7 +46,9 @@ public class SourcesLoader
                         {
                             Device = _[0],
                             IPAddress = _[1],
-                            RequestCount = item.Value.ToString()
+                            RequestCount = item.Value.ToString(),
+                            IpBrush = ipBrush,
+                            BlueBrush = blueBrush
                         });
                     }
                 }

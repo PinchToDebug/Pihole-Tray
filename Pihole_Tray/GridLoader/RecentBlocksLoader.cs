@@ -2,17 +2,20 @@
 using System.Windows;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
+using System.Windows.Media;
+
 
 public class QueriesType { 
     public string Time { get; set; }
     public string DomainName { get; set; }
+    public Brush ForegroundColor { get; set; }
 }
 
 public class RecentBlocksLoader
 {
 
 
-    public async Task LoadAsync(ItemsControl itemsControl, JArray arr, bool isV6)
+    public async Task LoadAsync(ItemsControl itemsControl, JArray arr, bool isV6, Brush color)
     {
         await Task.Run(() =>
         {
@@ -43,7 +46,8 @@ public class RecentBlocksLoader
                         items.Add(new QueriesType
                         {
                             Time = time,
-                            DomainName = domainName
+                            DomainName = domainName,
+                            ForegroundColor = color
                         });
                     }
                 }
@@ -58,7 +62,8 @@ public class RecentBlocksLoader
                         items.Add(new QueriesType
                         {
                             Time = time,
-                            DomainName = domainName
+                            DomainName = domainName,
+                            ForegroundColor = color
                         });
                     }
                 }

@@ -21,14 +21,15 @@ using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Interop;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
-using TextBlock = Wpf.Ui.Controls.TextBlock;
+using TextBlock = System.Windows.Controls.TextBlock;
 using static Interop;
+using Wpf.Ui;
+using System.Windows.Threading;
 namespace Pihole_Tray
 {
 
     public partial class MainWindow : FluentWindow
     {
-
         private readonly string apiUrl = "http://pi.hole/admin/api.php";
         private readonly string regKeyName = "Pihole_Tray";
         private string API_KEY;
@@ -42,6 +43,7 @@ namespace Pihole_Tray
         private bool enterAnim = false;
         private bool leaveAnim = false;
         private bool isWin11;
+        private bool isDarkTheme;
         private bool notifClickUpdateInfo = false;
 
         private CancellationTokenSource cancelToken;
@@ -73,34 +75,8 @@ namespace Pihole_Tray
         private ContextMenu DisableEnableContextMenu;
         private ContextMenu InstanceContextMenu;
         private CalcHeight CalcHeight;
+      
 
-
-
-        private void OnAnimationCompleted(object sender, EventArgs e)
-        {
-            Debug.WriteLine("CAN RESIZE now");
-            canResize = true;
-
-        }
-        protected override void OnExtendsContentIntoTitleBarChanged(bool oldValue, bool newValue)
-        {
-            SetCurrentValue(WindowStyleProperty, WindowStyle);
-            // https://github.com/lepoco/wpfui/issues/576
-            // this also fixes the thick shadow
-            WindowChrome.SetWindowChrome(
-                this,
-                new WindowChrome
-                {
-                    CaptionHeight = 0,
-                    CornerRadius = default,
-                    GlassFrameThickness = new Thickness(-1),
-                    ResizeBorderThickness = ResizeMode == ResizeMode.NoResize ? default : new Thickness(4),
-                    UseAeroCaptionButtons = false,
-                }
-            );
-
-            _ = UnsafeNativeMethods.RemoveWindowTitlebarContents(this);
-        }
 
         public MainWindow()
         {
@@ -150,20 +126,19 @@ namespace Pihole_Tray
                     case "Mica":
                         MicaBG.IsChecked = true;
                         this.WindowBackdropType = WindowBackdropType.Mica;
-                        MainGrid.Background = new BrushConverter().ConvertFrom("#0CFFFFFF") as Brush;
+
                         break;
                     case "Acrylic":
                         AcrylicBG.IsChecked = true;
                         this.WindowBackdropType = WindowBackdropType.Acrylic;
-                        MainGrid.Background = new BrushConverter().ConvertFrom("#B2101010") as Brush;
                         break;
                     case "None":
                         NoneBG.IsChecked = true;
                         this.WindowBackdropType = WindowBackdropType.None;
-                        MainGrid.Background = new BrushConverter().ConvertFrom("#B2101010") as Brush;
                         break;
                 }
             }
+            UpdateWPFUITheme(ShouldSystemUseDarkMode());
 
 
             if (reg.KeyExistsRoot("startOnLogin")) startOnLogin = (bool)reg.ReadKeyValueRoot("startOnLogin");
@@ -214,6 +189,31 @@ namespace Pihole_Tray
 
         }
 
+        private void OnAnimationCompleted(object sender, EventArgs e)
+        {
+            Debug.WriteLine("CAN RESIZE now");
+            canResize = true;
+
+        }
+        protected override void OnExtendsContentIntoTitleBarChanged(bool oldValue, bool newValue)
+        {
+            SetCurrentValue(WindowStyleProperty, WindowStyle);
+            // https://github.com/lepoco/wpfui/issues/576
+            // this also fixes the thick shadow
+            WindowChrome.SetWindowChrome(
+                this,
+                new WindowChrome
+                {
+                    CaptionHeight = 0,
+                    CornerRadius = default,
+                    GlassFrameThickness = new Thickness(-1),
+                    ResizeBorderThickness = ResizeMode == ResizeMode.NoResize ? default : new Thickness(4),
+                    UseAeroCaptionButtons = false,
+                }
+            );
+
+            _ = UnsafeNativeMethods.RemoveWindowTitlebarContents(this);
+        }
         private bool isWindows11()
         {
             return FileVersionInfo.GetVersionInfo("C:\\Windows\\System32\\kernel32.dll").FileBuildPart >= 22000;
@@ -286,6 +286,105 @@ namespace Pihole_Tray
         private bool stopUpdatingInfo = false;
 
         bool apiSaveCalled = false;
+
+
+
+        private async void UpdateWPFUITheme(bool darkMode)
+        {
+            ApplicationTheme theme = darkMode ? ApplicationTheme.Dark : ApplicationTheme.Light;
+            Window? mainWindow = UiApplication.Current.MainWindow;
+            UiApplication.Current.MainWindow = null;
+            ApplicationThemeManager.Apply(theme, Wpf.Ui.Controls.WindowBackdropType.None, false);
+            UiApplication.Current.MainWindow = mainWindow;
+
+            Brush foregroundBrush = darkMode ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFBBC4F7")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF465AFF"));
+            Brush greenBrush = darkMode ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6EF563")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF26B100"));
+            Brush redBrush = darkMode ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFB4B4")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFE63B3B"));
+            Brush purpleBrush = darkMode ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFABA4FF")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF5B50E2"));
+
+
+            for (int i = 0; i < QueryTypesGrid.RowDefinitions.Count; i++)
+            {
+                var percentageBlock = QueryTypesGrid.Children.OfType<TextBlock>()
+                    .FirstOrDefault(tb => Grid.GetRow(tb) == i && Grid.GetColumn(tb) == 1);
+
+                if (percentageBlock != null)
+                {
+                    percentageBlock.Foreground = foregroundBrush;
+                }
+            }
+
+            for (int i = 0; i < ForwardDestinationsGrid.RowDefinitions.Count; i++)
+            {
+                var percentageBlock = ForwardDestinationsGrid.Children.OfType<TextBlock>()
+                    .FirstOrDefault(tb => Grid.GetRow(tb) == i && Grid.GetColumn(tb) == 1);
+
+                if (percentageBlock != null)
+                {
+                    percentageBlock.Foreground = foregroundBrush;
+                }
+            }
+
+
+            if (StatusTB.Text == "enabled") StatusTB.Foreground = greenBrush;
+            else StatusTB.Foreground = redBrush;
+            DomainsBlockedTB.Foreground = redBrush;
+            AdsBlockedTB.Foreground = redBrush;
+            DnsQueryTB.Foreground = purpleBrush;
+
+
+            Color color = isDarkTheme ? Colors.White : Colors.Black;
+            Exit_Button.Foreground = new SolidColorBrush(color);
+
+
+            if (AcrylicBG.IsChecked == true)
+            {
+                if (darkMode)
+                {
+                    MainGrid.Background = new SolidColorBrush(Colors.Transparent);
+                    this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B2101010"));
+                }
+                else
+                {
+                    this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B2FFFFFF"));
+                    MainGrid.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#02FFFFFF"));
+                }
+            }
+            if (MicaBG.IsChecked == true)
+            {
+                if (darkMode)
+                {
+                    this.Background = new SolidColorBrush(Colors.Transparent);
+                    MainGrid.Background = new SolidColorBrush(Colors.Transparent);
+                }
+                else
+                {
+                    this.Background = new SolidColorBrush(Colors.Transparent);
+                    MainGrid.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#02FFFFFF"));
+                }
+            }
+            if (NoneBG.IsChecked == true)
+            {
+                if (darkMode)
+                {
+                    this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF292929"));
+                }
+                else
+                {
+                    MainGrid.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#02FFFFFF"));
+
+                    this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEDEDED"));
+                }
+            }
+        }
+
+    
+        
+
+
+
+
+
         private async void UpdateInfo(Instance instance, CancellationToken token)
         {
 
@@ -408,6 +507,13 @@ namespace Pihole_Tray
 
                 while (true)
                 {
+
+                        UpdateWPFUITheme(ShouldSystemUseDarkMode());
+                        isDarkTheme = ShouldSystemUseDarkMode();
+                  
+                   
+                                  
+                    
                     token.ThrowIfCancellationRequested();
                     // Debug.WriteLine($"api_i: {instance.API_KEY}");
                     if (storage.Instances.Count > 1)
@@ -576,6 +682,23 @@ namespace Pihole_Tray
 
                     token.ThrowIfCancellationRequested();
 
+                    Brush redBrush = isDarkTheme
+                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFB4B4"))
+                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFE63B3B"));
+
+                    Brush greenBrush = isDarkTheme
+                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6EF563"))
+                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF26B100"));
+
+                    Brush blueBrush = isDarkTheme
+                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFBBC4F7"))
+                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6A7AFF"));
+                   
+                    Brush purpleBrush = isDarkTheme
+                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFDDE1FB"))
+                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7B8BF5"));
+
+
                     if (instance.isV6 == true)
                     {
                         GravityLB.Visibility = Visibility.Collapsed;
@@ -596,13 +719,14 @@ namespace Pihole_Tray
                         }
 
                         StatusTB.Text = status.blocking;
-                        if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
-                        else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
 
-                        if ((bool)RecentBlocksTS.IsChecked) await new RecentBlocksLoader().LoadAsync(BlockHistoryItemsControl, blocked, (bool)instance.isV6);
-                        if ((bool)SourcesTS.IsChecked) await new SourcesLoader().LoadAsync(SourcesItemsControl, topClients, (bool)instance.isV6);
-                        if ((bool)ForwardDestinationsTS.IsChecked) await new DnsRoutesLoader().LoadAsync(ForwardDestinationsGrid, upStreams, (bool)instance.isV6);
-                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, queryTypes,(bool)instance.isV6);
+                        if (StatusTB.Text == "enabled") StatusTB.Foreground = greenBrush;
+                        else StatusTB.Foreground = redBrush;
+
+                        if ((bool)RecentBlocksTS.IsChecked) await new RecentBlocksLoader().LoadAsync(BlockHistoryItemsControl, blocked, (bool)instance.isV6, redBrush);
+                        if ((bool)SourcesTS.IsChecked) await new SourcesLoader().LoadAsync(SourcesItemsControl, topClients, (bool)instance.isV6, purpleBrush, blueBrush);
+                        if ((bool)ForwardDestinationsTS.IsChecked) await new DnsRoutesLoader().LoadAsync(ForwardDestinationsGrid, upStreams, (bool)instance.isV6, isDarkTheme);
+                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, queryTypes,(bool)instance.isV6, isDarkTheme);
                         token.ThrowIfCancellationRequested();
                     }
                     else
@@ -615,13 +739,14 @@ namespace Pihole_Tray
                         DomainsBlockedTB.Text = summary.domains_being_blocked;
 
                         StatusTB.Text = summary.status;
-                        if (StatusTB.Text == "enabled") StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99));
-                        else StatusTB.Foreground = new SolidColorBrush(Color.FromRgb(255, 73, 73));
 
-                        if ((bool)RecentBlocksTS.IsChecked) await new RecentBlocksLoader().LoadAsync(BlockHistoryItemsControl, queries_data, (bool)instance.isV6);
-                        if ((bool)SourcesTS.IsChecked) await new SourcesLoader().LoadAsync(SourcesItemsControl, topSources, (bool)instance.isV6);
-                        if ((bool)ForwardDestinationsTS.IsChecked) await new DnsRoutesLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations, (bool)instance.isV6);
-                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes, (bool)instance.isV6);
+                        if (StatusTB.Text == "enabled") StatusTB.Foreground = greenBrush;
+                        else StatusTB.Foreground = redBrush;
+
+                        if ((bool)RecentBlocksTS.IsChecked) await new RecentBlocksLoader().LoadAsync(BlockHistoryItemsControl, queries_data, (bool)instance.isV6, redBrush);
+                        if ((bool)SourcesTS.IsChecked) await new SourcesLoader().LoadAsync(SourcesItemsControl, topSources, (bool)instance.isV6, purpleBrush, blueBrush);
+                        if ((bool)ForwardDestinationsTS.IsChecked) await new DnsRoutesLoader().LoadAsync(ForwardDestinationsGrid, forward_destinations, (bool)instance.isV6, isDarkTheme);
+                        if ((bool)QueryTS.IsChecked) await new QueryTypesLoader().LoadAsync(QueryTypesGrid, querytypes, (bool)instance.isV6, isDarkTheme);
                         token.ThrowIfCancellationRequested();
                     }
 
@@ -724,6 +849,7 @@ namespace Pihole_Tray
                         }
                         enterAnim = false;
                     };
+                    BlockHistorySV.MinHeight = targetHeight-10;
                     BlockHistoryCard.BeginAnimation(FrameworkElement.HeightProperty, animation);
                 }
             }
@@ -872,7 +998,8 @@ namespace Pihole_Tray
 
         private void Exit_Button_MouseLeave(object sender, MouseEventArgs e)
         {
-            Exit_Button.Foreground = Brushes.White;
+            Color color = isDarkTheme ? Colors.White : Colors.Black;
+            Exit_Button.Foreground = new SolidColorBrush(color);
         }
 
 
@@ -1343,7 +1470,7 @@ namespace Pihole_Tray
                 MenuItem DisableEnableButton = new MenuItem
                 {
                     Header = "Enable",
-                    Foreground = new SolidColorBrush(Color.FromRgb(110, 245, 99)),
+                    Foreground = isDarkTheme ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6EF563")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF26B100")),
                     FontSize = 13,
                     FontWeight = FontWeights.Normal
                 };
@@ -1357,7 +1484,7 @@ namespace Pihole_Tray
                 {
                     IsEnabled = false,
                     Header = "Disable blocking for:",
-                    Foreground = Brushes.White,
+                    Foreground = isDarkTheme ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.Black),
                     FontSize = 12,
                     FontWeight = FontWeights.Normal
                 };
@@ -1403,12 +1530,13 @@ namespace Pihole_Tray
                 {
 
                     this.WindowBackdropType = WindowBackdropType.Mica;
-                    MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#0CFFFFFF");
+                  //  MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#0CFFFFFF");
+               //    MainGrid.Background = null;
                 }
                 else if (ts.Name == "AcrylicBG")
                 {
                     this.WindowBackdropType = WindowBackdropType.Acrylic;
-                    MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#B2101010");
+                   // MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#B2101010");
                     if (!isWin11)
                     {
                         var windowHelper = new WindowInteropHelper(this);
@@ -1436,7 +1564,7 @@ namespace Pihole_Tray
                 else
                 {
                     this.WindowBackdropType = WindowBackdropType.None;
-                    MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#B2101010");
+                  //  MainGrid.Background = (Brush)new BrushConverter().ConvertFrom("#B2101010");
                 }
                 base.OnActivated(e);
 
@@ -1502,6 +1630,10 @@ namespace Pihole_Tray
         private void SelectOtherInstnaceBTN_Click(object sender, RoutedEventArgs e)
         {
             OtherInstanceContextMenu.Items.Clear();
+            SolidColorBrush greenBrush = isDarkTheme ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6EF563")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF26B100"));
+            SolidColorBrush redBrush = isDarkTheme ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFB4B4")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFE63B3B"));
+            SolidColorBrush orangeBrush = isDarkTheme ? new SolidColorBrush(Color.FromRgb(244, 207, 64)) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6EF563"));
+
             foreach (Instance instance in storage.Instances)
             {
                 MenuItem menuItem = new MenuItem
@@ -1533,6 +1665,7 @@ namespace Pihole_Tray
                 menuItem.Click += InstanceSelected_Click;
                 OtherInstanceContextMenu.Items.Add(menuItem);
             }
+
             foreach (var item in OtherInstanceContextMenu.Items)
             {
                 if (item is MenuItem menuItem && menuItem.Header is StackPanel sp)
@@ -1552,11 +1685,11 @@ namespace Pihole_Tray
                                     switch (status)
                                     {
                                         case 0: // Enabled
-                                            brush = new SolidColorBrush(Color.FromRgb(70, 244, 64)); // Green
+                                            brush = greenBrush; // Green
                                             break;
 
                                         case 1: // Disabled
-                                            brush = new SolidColorBrush(Color.FromRgb(244, 64, 64)); // Red
+                                            brush = redBrush; // Red
                                             break;
 
                                         case 2: // Reachable but can't reach API
@@ -1567,7 +1700,7 @@ namespace Pihole_Tray
                                             break;
 
                                         case -1: // Unreachable
-                                            brush = new SolidColorBrush(Color.FromRgb(244, 207, 64)); // Orange-ish
+                                            brush = orangeBrush; // Orange-ish
                                             menuItem.ToolTip = "Address unreachable.";
                                             menuItem.Click -= InstanceSelected_Click;
                                             menuItem.Cursor = Cursors.Help;

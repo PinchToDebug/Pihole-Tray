@@ -18,7 +18,7 @@
                  MinHeight="10"
                  ResizeMode="NoResize" 
                  WindowStyle="None" 
-                 UseLayoutRounding="True" Loaded="fluentWindow_Loaded" Background="#B2101010" >
+                 UseLayoutRounding="True" Loaded="fluentWindow_Loaded" Background="Transparent" >
 
 
 
@@ -26,12 +26,12 @@
     <!--Background="#B2101010"-->
 
 
-    <Grid  Name="MainGrid" Background="#B2101010">
+    <Grid  Name="MainGrid">
 
         <Grid Name="ContentGrid" Margin="16,16,16,16" >
             <StackPanel Name="Info_StackPanel" Visibility="Visible" >
 
-                <ui:Card  Name="Basic1" Margin="0,0,0,10" VerticalAlignment="Top" Padding="14,5,14,7">
+                <ui:Card  Name="Basic1" Margin="0,0,0,10" VerticalAlignment="Top" Padding="14,5,14,7"  >
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
@@ -45,7 +45,7 @@
 
 
                         </Grid.RowDefinitions>
-                        <ui:TextBlock Text="Home PI:"     Name="CurrentNameTB"  Grid.Column="0" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Cursor="Hand" MouseLeftButtonUp="Instance_MouseLeftButtonUp"/>
+                        <ui:TextBlock Text="Home PI:"     Name="CurrentNameTB"  Grid.Column="0" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Cursor="Hand" MouseLeftButtonUp="Instance_MouseLeftButtonUp" />
                         <TextBlock Text="Domains Blocked:" Grid.Column="0" Grid.Row="1" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
                         <TextBlock Name="GravityLB" Text="Gravity updated:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
 
@@ -73,7 +73,7 @@
 
                         </Grid.RowDefinitions>
                         <TextBlock Text="DNS Queries:"       Grid.Column="0" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                        <TextBlock Text="Ads Blocked:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                        <TextBlock Text="Ads Blocked:" Grid.Column="0" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"  />
 
                         <TextBlock Name="DnsQueryTB" Text="-" Grid.Column="1" Grid.Row="0" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"  Foreground="#FFABA4FF"/>
                         <TextBlock Name="AdsBlockedTB" Text="-" Grid.Column="1" Grid.Row="2" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,4,0,0" Foreground="#FFFFA4A4"/>
@@ -112,7 +112,7 @@
                                             <RowDefinition Height="18"/>
                                         </Grid.RowDefinitions>
                                         <TextBlock Text="{Binding Time}"    FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Left" MinWidth="120"/>
-                                        <TextBlock Text="{Binding DomainName}"   FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Right" Foreground="#FFFFB4B4"/>
+                                        <TextBlock Text="{Binding DomainName}" Foreground="{Binding ForegroundColor}" Name="DomainName" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Right" />
                                         <Rectangle Height="1" Fill="#20FFFFFF" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="0,0,0,-1.5" />
                                     </Grid>
                                 </DataTemplate>
@@ -125,7 +125,7 @@
 
 
 
-                <Label Content="Sources"  Name="SourcesLBL"  HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,0,5"/>
+                <Label Content="Sources"  Name="SourcesLBL"  HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,0,5" />
                 <ui:Card Name="SourcesCard" Margin="0,0,0,0"  Padding="14,5,14,7"  VerticalAlignment="Top" >
                     <ItemsControl Name="SourcesItemsControl">
                         <ItemsControl.ItemTemplate>
@@ -141,8 +141,8 @@
 
                                     </Grid.RowDefinitions>
                                     <TextBlock Text="{Binding Device}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"  Grid.Column="0"/>
-                                    <TextBlock Text="{Binding IPAddress}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="#FFDDE1FB" Grid.Column="1"/>
-                                    <TextBlock Text="{Binding RequestCount}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#FFBBC4F7" Grid.Column="2" />
+                                    <TextBlock Text="{Binding IPAddress}"  Foreground="{Binding IpBrush}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left" Grid.Column="1"/>
+                                    <TextBlock Text="{Binding RequestCount}"  Foreground="{Binding BlueBrush}" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Grid.Column="2" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -187,20 +187,20 @@
             <StackPanel x:Name="Default_StackPanel"  Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisibleChanged="Default_StackPanel_IsVisibleChanged" d:IsHidden="True" >
                 <Button Content="Back" Name="BackButton" HorizontalAlignment="Right" Visibility="Collapsed" Click="BackButton_Click"/>
 
-                <TextBlock  Text="Give it a name:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5" HorizontalAlignment="Left"  />
+                <TextBlock  Text="Give it a name:"  Margin="10,0,0,0" Padding="1,0,0,5" HorizontalAlignment="Left"  />
                 <TextBox Name="NameTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"/>
 
-                <TextBlock Name="AddressLB" Text="API address:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                <TextBlock Name="AddressLB" Text="API address:"  Margin="10,0,0,0" Padding="1,0,0,5"  />
                 <ui:TextBox Name="AddressTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270"  TextWrapping="Wrap" FontSize="13"  TextChanged="AddressTB_TextChanged" >
 
                 </ui:TextBox>
 
                 <StackPanel Name="LoginV5">
-                    <TextBlock  Text="API key:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                    <TextBlock  Text="API key:"  Margin="10,0,0,0" Padding="1,0,0,5"  />
                     <TextBox Name="ApiTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270" Height="60" TextWrapping="Wrap" FontSize="13"/>
                 </StackPanel>
                 <StackPanel Name="LoginV6">
-                    <TextBlock  Text="Password:"  Margin="10,0,0,0" Foreground="{DynamicResource {x:Static SystemColors.ScrollBarBrushKey}}" Padding="1,0,0,5"  />
+                    <TextBlock  Text="Password:"  Margin="10,0,0,0" Padding="1,0,0,5"  />
                     <ui:PasswordBox Name="PasswordTB" Margin="10,0,10,10"  HorizontalAlignment="Center"  MinWidth="270" MaxWidth="270" Height="35" TextWrapping="Wrap" FontSize="13"/>
                 </StackPanel>
                 <ui:HyperlinkButton Name="NavHyperlinkButton" NavigateUri="http://pi.hole/admin/settings.php?tab=api"  Content="http://pi.hole/admin/settings.php?tab=api" HorizontalAlignment="Center" />

@@ -13,7 +13,7 @@ public class QueryTypesLoader
 {
     bool isAnimating = false;
 
-    public async Task LoadAsync(Grid grid, JObject json, bool isV6)
+    public async Task LoadAsync(Grid grid, JObject json, bool isV6, bool isDarkTheme)
     {
 
         BrushConverter brushConverter = new BrushConverter();
@@ -30,6 +30,10 @@ public class QueryTypesLoader
 
         try
         {
+            Brush foregroundBrush = isDarkTheme 
+                ? (Brush)brushConverter.ConvertFrom("#FFBBC4F7")! 
+                : (Brush)brushConverter.ConvertFrom("#FF465AFF")!;
+
             if (isV6)
             {
                 await Task.Run(() =>
@@ -171,7 +175,7 @@ public class QueryTypesLoader
                     FontSize = 13,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Right,
-                    Foreground = (Brush)brushConverter.ConvertFrom("#FFBBC4F7")
+                    Foreground = foregroundBrush
                 };
 
 
