@@ -9,6 +9,7 @@ using System.Net.NetworkInformation;
 using System.Text.Json;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Xml.Linq;
 using static System.Net.WebRequestMethods;
 
 public class Instance {
@@ -199,7 +200,25 @@ public class Instance {
 public class InstanceStorage {
 
     public List<Instance> Instances  = new List<Instance>();
-
+    public void WroteOverInstanceToKey(Instance instance,string oldKey)
+    {
+        try
+        {
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@$"SOFTWARE\Pihole_Tray\Instances\{instance.Name}"))
+            {
+                key.SetValue("API_KEY", instance.API_KEY ?? "");
+                key.SetValue("Name", instance.Name ?? "");
+                key.SetValue("Address", instance.Address ?? "");
+                key.SetValue("Order", instance.Order!);
+                key.SetValue("IsDefault", instance.IsDefault ?? false);
+                key.SetValue("isV6", instance.isV6 ?? false);
+                key.SetValue("Password", instance.Password ?? "");
+                key.SetValue("SID", instance.SID ?? "");
+            }
+            Registry.CurrentUser.DeleteSubKey(@$"SOFTWARE\Pihole_Tray\Instances\{oldKey}", throwOnMissingSubKey: false);
+        }
+        catch { }
+    }
     public void WriteInstanceToKey(Instance instance)
     {
         try

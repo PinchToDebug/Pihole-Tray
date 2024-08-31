@@ -184,7 +184,7 @@
 
             </StackPanel>
 
-            <StackPanel x:Name="Default_StackPanel"  Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisibleChanged="Default_StackPanel_IsVisibleChanged" d:IsHidden="True" >
+            <StackPanel x:Name="Default_StackPanel"  Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisibleChanged="Default_StackPanel_IsVisibleChanged" >
                 <Button Content="Back" Name="BackButton" HorizontalAlignment="Right" Visibility="Collapsed" Click="BackButton_Click"/>
 
                 <TextBlock  Text="Give it a name:"  Margin="10,0,0,0" Padding="1,0,0,5" HorizontalAlignment="Left"  />

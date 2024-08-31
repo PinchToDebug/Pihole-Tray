@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+﻿using System.Windows.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
@@ -7,7 +7,6 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -21,10 +20,14 @@ using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Interop;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
+using Button = Wpf.Ui.Controls.Button;
 using TextBlock = System.Windows.Controls.TextBlock;
 using static Interop;
 using Wpf.Ui;
-using System.Windows.Threading;
+using TextBox = Wpf.Ui.Controls.TextBox;
+using PasswordBox = Wpf.Ui.Controls.PasswordBox;
+using Microsoft.Win32;
+
 namespace Pihole_Tray
 {
 
@@ -40,6 +43,7 @@ namespace Pihole_Tray
         private bool allInstanceShown = true;
 
         private bool isAnimating = false;
+        private bool editingInstance = false;
         private bool enterAnim = false;
         private bool leaveAnim = false;
         private bool isWin11;
@@ -172,6 +176,7 @@ namespace Pihole_Tray
             {
                 // defaultInstance = storage.DefaultInstance();
                 Debug.WriteLine("Using default API_KEY");
+
                 API_KEY = storage.DefaultInstance()!.API_KEY ?? "";
                 // ApiTB.Text = API_KEY;
                 // this.Top = (int)SystemParameters.PrimaryScreenHeight;
@@ -626,8 +631,11 @@ namespace Pihole_Tray
                             DnsQueryTB.Text = summary.dns_queries_all_types;
                         }
 
-
-                        ContentGrid.Effect = null;
+                        if (!editingInstance)
+                        {
+                            ContentGrid.Effect = null;
+                        }
+                       
                         showEffect = true;
                         LostConnectionGrid.Visibility = Visibility.Hidden;
                     }
@@ -772,6 +780,7 @@ namespace Pihole_Tray
                                     if (i.IsDefault == true)
                                     {
                                         i.IsDefault = false;
+                                        storage.WriteInstanceToKey(i);
                                     }
                                 }
                             }
@@ -1266,30 +1275,60 @@ namespace Pihole_Tray
             {
                 MenuItem menuItem = new MenuItem
                 {
+                    Tag = instance,
                     FontSize = 13,
                     FontWeight = FontWeights.Normal,
-                    Header = new StackPanel
+                    Header = new Grid
                     {
-                        Orientation = Orientation.Horizontal,
-                        Children = {
-                            new TextBlock
+                        ColumnDefinitions =
+                        {
+                            new ColumnDefinition(),
+                            new ColumnDefinition { Width = GridLength.Auto }
+                        },
+                        Children =
+                        {
+                            new StackPanel
                             {
-                                ToolTip = "",
-                                Text = "\u25CF",
-                                FontSize = 16,
-                                Foreground =  new SolidColorBrush(Color.FromRgb(150, 150, 150)),
-                                Margin = new Thickness(0, 0, 7, 2),
-                                VerticalAlignment = VerticalAlignment.Center
+                                Orientation = Orientation.Horizontal,
+                                Children =
+                                {
+                                    new TextBlock
+                                    {
+                                        ToolTip = "",
+                                        Text = "\u25CF",
+                                        FontSize = 16,
+                                        Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                                        Margin = new Thickness(0, 0, 7, 2),
+                                        VerticalAlignment = VerticalAlignment.Center
+                                    },
+                                    new TextBlock
+                                    {
+                                        Text = instance.Name,
+                                        VerticalAlignment = VerticalAlignment.Center
+                                    }
+                                }
                             },
-                            new TextBlock
+                            new Button
                             {
-                                Text = instance.Name,
-                                VerticalAlignment = VerticalAlignment.Center
+                                Icon = new SymbolIcon { Symbol = SymbolRegular.Settings48 },
+                                FontSize = 12,
+                                Padding = new Thickness(3),
+                                VerticalAlignment = VerticalAlignment.Center,
+                                Visibility = Visibility.Hidden
                             }
                         }
                     }
                 };
+                Grid.SetColumn((menuItem.Header as Grid).Children[0], 0); 
+                Grid.SetColumn((menuItem.Header as Grid).Children[1], 1);
+
+
+                Button editButton = (Button)((Grid)menuItem.Header).Children[1];
+                editButton.Click += EditInstanceButton_Click;
+
                 Debug.WriteLine($"instance menu added:{instance.Name}");
+                menuItem.MouseEnter += Instance_MenuItem_MouseEnter;
+                menuItem.MouseLeave += Instance_MenuItem_MouseLeave;
                 menuItem.Click += InstanceSelected_Click;
                 InstanceContextMenu.Items.Add(menuItem);
             }
@@ -1297,7 +1336,6 @@ namespace Pihole_Tray
 
             MenuItem AddButton = new MenuItem
             {
-
                 Header = new TextBlock
                 {
                     Text = "\u002B",
@@ -1310,77 +1348,86 @@ namespace Pihole_Tray
 
             };
             AddButton.Click += Addbutton_Click;
+
             if (storage.Instances.Count > 1)
             {
                 InstanceContextMenu.Items.Add(new Separator());
-
             }
             InstanceContextMenu.Items.Add(AddButton);
             InstanceContextMenu.IsOpen = true;
 
             foreach (var item in InstanceContextMenu.Items)
             {
-                if (item is MenuItem menuItem && menuItem.Header is StackPanel sp)
+                if (item is MenuItem menuItem && menuItem.Header is Grid grid)
                 {
 
-                    foreach (var instance in storage.Instances)
+                    if (grid.Children[0] is StackPanel sp)
                     {
-
-                        if ((sp.Children[1] as TextBlock).Text == instance.Name)
+                        var textBlock = sp.Children.OfType<TextBlock>().Skip(1).FirstOrDefault();
+                        if (textBlock != null)
                         {
-                            _ = Task.Run(() =>
+                            string menuItemText = textBlock.Text;
+
+                            foreach (var instance in storage.Instances)
                             {
-                                int status = instance.Status().Result;
-                                if (instance.isV6 == true) // TODO: change later when instances can be edited
+                                if (menuItemText == instance.Name)
                                 {
-                                    storage.WriteInstanceToKey(instance);
-                                }
-
-                                Debug.WriteLine($"{instance.Name}, {status}");
-                                Dispatcher.Invoke(() =>
-                                {
-                                    SolidColorBrush brush = new SolidColorBrush();
-                                    switch (status)
                                     {
-                                        case 0: // Enabled
-                                            brush = new SolidColorBrush(Color.FromRgb(70, 244, 64)); // Green
-                                            break;
-
-                                        case 1: // Disabled
-                                            brush = new SolidColorBrush(Color.FromRgb(244, 64, 64)); // Red
-                                            break;
-
-                                        case 2: // Reachable but can't reach API
-                                            brush = new SolidColorBrush(Color.FromRgb(64, 116, 244)); // Blue
-                                            menuItem.Click -= InstanceSelected_Click;
-                                            if (instance.isV6 == true)
+                                        _ = Task.Run(() =>
+                                        {
+                                            int status = instance.Status().Result;
+                                            if (instance.isV6 == true) // TODO: change later when instances can be edited
                                             {
-                                                menuItem.ToolTip = "Address reachable, but API inaccessible.\nLikely the password is incorrect.";
+                                                storage.WriteInstanceToKey(instance);
                                             }
-                                            else
+
+                                            Debug.WriteLine($"{instance.Name}, {status}");
+                                            Dispatcher.Invoke(() =>
                                             {
-                                                menuItem.ToolTip = "Address reachable, but API inaccessible.";
-                                            }
-                                            menuItem.Cursor = Cursors.Help;
-                                            break;
+                                                SolidColorBrush brush = new SolidColorBrush();
+                                                switch (status)
+                                                {
+                                                    case 0: // Enabled
+                                                        brush = new SolidColorBrush(Color.FromRgb(70, 244, 64)); // Green
+                                                        break;
 
-                                        case -1: // Unreachable
-                                            brush = new SolidColorBrush(Color.FromRgb(244, 207, 64)); // Orange-ish
-                                            menuItem.ToolTip = "Address unreachable.";
-                                            menuItem.Click -= InstanceSelected_Click;
-                                            menuItem.Cursor = Cursors.Help;
+                                                    case 1: // Disabled
+                                                        brush = new SolidColorBrush(Color.FromRgb(244, 64, 64)); // Red
+                                                        break;
 
-                                            break;
-                                        default:
-                                            break;
+                                                    case 2: // Reachable but can't reach API
+                                                        brush = new SolidColorBrush(Color.FromRgb(64, 116, 244)); // Blue
+                                                        menuItem.Click -= InstanceSelected_Click;
+                                                        if (instance.isV6 == true)
+                                                        {
+                                                            menuItem.ToolTip = "Address reachable, but API inaccessible.\nLikely the password is incorrect.";
+                                                        }
+                                                        else
+                                                        {
+                                                            menuItem.ToolTip = "Address reachable, but API inaccessible.";
+                                                        }
+                                                        menuItem.Cursor = Cursors.Help;
+                                                        break;
+
+                                                    case -1: // Unreachable
+                                                        brush = new SolidColorBrush(Color.FromRgb(244, 207, 64)); // Orange-ish
+                                                        menuItem.ToolTip = "Address unreachable.";
+                                                        menuItem.Click -= InstanceSelected_Click;
+                                                        menuItem.Cursor = Cursors.Help;
+
+                                                        break;
+                                                    default:
+                                                        break;
+                                                }
+
+                                                (sp.Children[0] as TextBlock).Foreground = brush;
+
+                                            });
+
+                                        });
                                     }
-
-                                    (sp.Children[0] as TextBlock).Foreground = brush;
-
-                                });
-
-                            });
-
+                                }
+                            }
                         }
                     }
                 }
@@ -1397,36 +1444,228 @@ namespace Pihole_Tray
             QueryTypesGrid.Children.Clear();
             QueryTypesGrid.RowDefinitions.Clear();
         }
-        private async void InstanceSelected_Click(object sender, RoutedEventArgs e)
+
+        private async void EditInstanceButton_Click(object sender, RoutedEventArgs e)
         {
-            MenuItem menuItem = sender as MenuItem;
+            Button clickedButton = sender as Button;
+            if (clickedButton == null)
+                return;
 
-            if (menuItem != null)
+            MenuItem parentMenuItem = null;
+
+            DependencyObject current = clickedButton;
+            while (current != null)
             {
-                StackPanel sp = menuItem.Header as StackPanel;
-
-                TextBlock secondTextBlock = sp.Children[1] as TextBlock;
-
-
-                string secondText = secondTextBlock.Text;
-                foreach (Instance i in storage.Instances)
+                if (current is MenuItem parent)
                 {
-                    if (i.Name == secondTextBlock.Text)
-                    {
-                        if (cancelToken != null)
-                        {
-                            cancelToken.Cancel();
-                            ClearElements();
-                        }
-                        cancelToken = new CancellationTokenSource();
-                        selectedInstance = i;
-                        UpdateInfo(i, cancelToken.Token);
-                    }
+                    parentMenuItem = parent;
+                    break;
                 }
-
+                current = VisualTreeHelper.GetParent(current);
             }
 
+            if (parentMenuItem == null)
+                return;
+
+            var instance = parentMenuItem.Tag as Instance;
+
+            if (instance == null)
+                return;
+
+            var stackPanel = new StackPanel
+            {
+                Width = 218,
+                Margin = new Thickness(0, 0, 0, -40),
+                HorizontalAlignment = HorizontalAlignment.Left,
+            };
+
+
+            stackPanel.Children.Add(new TextBlock
+            {
+                Text = $"Name:",
+                Margin = new Thickness(1, 10, 1, 5)
+            });
+            stackPanel.Children.Add(new TextBox
+            {
+                Name = "newName",
+                Text = instance.Name,
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 13,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            stackPanel.Children.Add(new TextBlock
+            {
+                Text = $"Address:",
+                Margin = new Thickness(1, 10, 1, 5)
+            });
+            stackPanel.Children.Add(new TextBox
+            {
+                Name = "newAddress",
+                Text = instance.Address,
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 13,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+
+            if ((bool)instance.isV6)
+            {
+                stackPanel.Children.Add(new TextBlock
+                {
+                    Text = "Password:",
+                    Margin = new Thickness(1, 10, 1, 5)
+                });
+
+                stackPanel.Children.Add(new PasswordBox
+                {
+                    Name = "newPassword",
+                    Text = instance.Password,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+            }
+            else
+            {
+                stackPanel.Children.Add(new TextBlock
+                {
+                    Text = "API Key:",
+                    Margin = new Thickness(1, 10, 1, 5)
+                });
+
+                stackPanel.Children.Add(new TextBox
+                {
+                    Name = "newApikey",
+                    Text = instance.API_KEY,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+            }
+            stackPanel.Children.Add(new ToggleSwitch
+            {
+                Name = "newIsDefault",
+                IsChecked = instance.IsDefault,
+                OnContent = "It is the default.",
+                OffContent = "It is not the default.",
+                Margin = new Thickness(1, 10, 1, 5)
+            });
+
+            var contentDialog = new ContentDialog(RootContentDialogPresenter)
+            {
+                Title = $"Editing {instance.Name}",
+                Content = stackPanel,
+                PrimaryButtonText = "Save",
+                SecondaryButtonText = "Delete",
+                SecondaryButtonAppearance = ControlAppearance.Danger,
+                CloseButtonText = "Cancel"
+            };
+            editingInstance = true;
+            ContentGrid.Effect = new BlurEffect
+            {
+                Radius = 30,
+                RenderingBias = RenderingBias.Quality,
+                KernelType = KernelType.Gaussian
+            };
+            ContentDialogResult result = await contentDialog.ShowAsync();
+
+            switch (result)
+            {
+                case ContentDialogResult.Primary:
+                    foreach (var i in storage.Instances)
+                    {
+                        if (instance.Name == i.Name && instance.Address == i.Address)
+                        {
+                            string oldKeyName = i.Name;
+                            i.Name = stackPanel.Children.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "newName")!.Text;
+                            i.Address = stackPanel.Children.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "newAddress")!.Text;
+                            i.IsDefault = (bool)stackPanel.Children.OfType<ToggleSwitch>().FirstOrDefault(ts => ts.Name == "newIsDefault")!.IsChecked!;
+
+                            if ((bool)instance.isV6) i.Password = stackPanel.Children.OfType<PasswordBox>().FirstOrDefault(pb => pb.Name == "newPassword")!.Password;
+                            else i.API_KEY = stackPanel.Children.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "newApikey")!.Text;
+
+
+                            if ((bool)i.IsDefault)
+                            {
+                                Debug.WriteLine("NEW DEFAULT SRT");
+                                foreach (var ins in storage.Instances)
+                                {
+                                    if (ins.IsDefault == true && ins.Name != i.Name)
+                                    {
+                                        Debug.WriteLine($"Setting default to false in: {ins.Name}");
+                                        ins.IsDefault = false;
+                                        storage.WriteInstanceToKey(ins);
+                                    }
+                                }
+                            }
+                            storage.WroteOverInstanceToKey(i, oldKeyName);
+                            break;
+                        }
+
+                    }
+                    break;
+                case ContentDialogResult.Secondary:
+                    var confirmationDialog = new ContentDialog(RootContentDialogPresenter)
+                    {
+                        Title = "Confirm Deletion",
+                        Content = "Are you sure you want to delete this instance?",
+                        PrimaryButtonText = "Yes",
+                        PrimaryButtonAppearance = ControlAppearance.Danger,
+                        CloseButtonText = "No",
+                    };
+                    ContentDialogResult confirmationResult = await confirmationDialog.ShowAsync();
+
+                    if (confirmationResult == ContentDialogResult.Primary)
+                    {
+                        Registry.CurrentUser.DeleteSubKeyTree(@$"SOFTWARE\Pihole_Tray\Instances\{instance.Name}", throwOnMissingSubKey: false);
+                        storage.Instances.RemoveAll(storedInstance => storedInstance.Name == instance.Name);
+                    }
+                    break;
+            }
+            ContentGrid.Effect = null;
+            editingInstance = false;
+
         }
+
+   
+
+        private void Instance_MenuItem_MouseEnter(object sender, RoutedEventArgs e) {
+            if (sender is MenuItem menuItem && menuItem.Header is Grid grid)
+            {
+                var button = grid.Children.OfType<Button>().FirstOrDefault();
+                if (button != null)
+                {
+                    button.Visibility = Visibility.Visible; 
+                }
+            }
+        }
+        private void Instance_MenuItem_MouseLeave(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.Header is Grid grid)
+            {
+                var button = grid.Children.OfType<Button>().FirstOrDefault();
+                if (button != null)
+                {
+                    button.Visibility = Visibility.Hidden;
+                }
+            }
+        }
+        private void InstanceSelected_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.Tag is Instance instance)
+            {
+                cancelToken?.Cancel();
+                ClearElements();
+
+                cancelToken = new CancellationTokenSource();
+
+                selectedInstance = instance;
+
+                UpdateInfo(selectedInstance, cancelToken.Token);
+            }
+        }
+
         private void Addbutton_Click(object sender, RoutedEventArgs e)
         {
             LoginBTN.Visibility = Visibility.Collapsed;
