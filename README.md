@@ -24,7 +24,11 @@
 
 ## 🚀 Planned features
 - "View all" menu for aggregated statistics
-
+#### After v6 release:
+- Gravity update
+- Whitelisting blocked domains
+- System information (temp and etc.)
+  
 ## 🤝 Contributing
 Contributions are welcome! If you have an idea for a feature or find a bug, please open an issue or submit a pull request!
 
