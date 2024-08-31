@@ -12,7 +12,8 @@
 - Support for multiple instances *(Click on "Status:" to add more instances)*
 - Supports **Pihole V5 and V6**
 - Dark and light mode
-
+- Instance modifying, deleting
+  
 ## Screenshots
 
 <div style="display: flex;">
@@ -23,7 +24,6 @@
 
 ## 🚀 Planned features
 - "View all" menu for aggregated statistics
-- Instance modifying, deleting
 
 ## 🤝 Contributing
 Contributions are welcome! If you have an idea for a feature or find a bug, please open an issue or submit a pull request!
