@@ -1,6 +1,10 @@
 # Unofficial Pi-hole tray monitor for Windows
 **Pihole Tray** is a system tray application for Windows that allows you to manage your Pi-hole instance(s) directly from your desktop. Easily toggle blocking and check statistics without needing to access the web interface.
 
+![Downloads](https://img.shields.io/github/downloads/PinchToDebug/Pihole-Tray/total)
+![Version](https://img.shields.io/github/v/release/PinchToDebug/Pihole-Tray)
+![Issues](https://img.shields.io/github/issues/PinchToDebug/Pihole-Tray)
+
 ## ✨ Features
 
 - Easy setup
@@ -28,9 +32,10 @@
 - Gravity update
 - Whitelisting blocked domains
 - System information (temp and etc.)
-  
+
 ## 🤝 Contributing
-Contributions are welcome! If you have an idea for a feature or find a bug, please open an issue or submit a pull request!
+Contributions are welcome! If you have an idea for a feature or find a bug, please open an [issue](https://github.com/PinchToDebug/Pihole-Tray/issues) or submit a [pull request](https://github.com/PinchToDebug/Pihole-Tray/pulls)!
+
 
 ## 📝 Important
 The project is under development and could have bugs.\
@@ -42,6 +47,5 @@ This project is not affiliated with the Pi-hole project or its developers. This 
 
 ## 📜 License
 
-This project is licensed under the MIT License.
-
+This project is licensed under the MIT License.<br>
 The project is built using [WPF UI](https://github.com/lepoco/wpfui), which is licensed under the [MIT License](https://github.com/lepoco/wpfui/blob/main/LICENSE).
