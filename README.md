@@ -1,9 +1,10 @@
 # Unofficial Pi-hole tray monitor for Windows
 **Pihole Tray** is a system tray application for Windows that allows you to manage your Pi-hole instance(s) directly from your desktop. Easily toggle blocking and check statistics without needing to access the web interface.
 
-![Downloads](https://img.shields.io/github/downloads/PinchToDebug/Pihole-Tray/total)
-![Version](https://img.shields.io/github/v/release/PinchToDebug/Pihole-Tray)
-![Issues](https://img.shields.io/github/issues/PinchToDebug/Pihole-Tray)
+<a href="#"><img src="https://img.shields.io/github/downloads/PinchToDebug/Pihole-Tray/total" alt="Downloads"></a>
+<a href="#"><img src="https://img.shields.io/github/v/release/PinchToDebug/Pihole-Tray" alt="Version"></a>
+<a href="#"><img src="https://img.shields.io/github/issues/PinchToDebug/Pihole-Tray" alt="Issues"></a>
+
 
 ## ✨ Features
 
