@@ -569,14 +569,7 @@ namespace Pihole_Tray
                     
                     token.ThrowIfCancellationRequested();
                     // Debug.WriteLine($"api_i: {instance.API_KEY}");
-                    if (storage.Instances.Count > 1)
-                    {
-                        CurrentNameTB.Text = $"{instance.Name}:";
-                    }
-                    else
-                    {
-                        CurrentNameTB.Text = "Status:";
-                    }
+                    CurrentNameTB.Text = $"{instance.Name}:";
                     //if (this.Visibility != Visibility.Visible && !coldRun)
                     //{
                     //   await Task.Delay(100);
