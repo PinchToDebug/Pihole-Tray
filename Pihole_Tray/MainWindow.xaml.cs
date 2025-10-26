@@ -52,6 +52,8 @@ namespace Pihole_Tray
         private bool isDarkTheme;
         private bool notifClickUpdateInfo = false;
 
+        private uint _taskbarRestartMessage;
+
         public static CancellationTokenSource? cancelToken;
 
         public static InstanceStorage storage;
@@ -1926,9 +1928,17 @@ namespace Pihole_Tray
                 reg.WriteToRegistryRoot("Background", ts.Name.Replace("BG", ""));
             }
         }
-
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == _taskbarRestartMessage) trayIcon.Register();
+            return IntPtr.Zero;
+        }
         private void fluentWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            _taskbarRestartMessage = RegisterWindowMessage("TaskbarCreated");
+            var hwndSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            hwndSource.AddHook(WndProc);
+
             if (isWin11) // Makes sure it doesn't change on Windows 10 as it crashes the program
             {
                 var hwnd = new WindowInteropHelper(this).Handle;

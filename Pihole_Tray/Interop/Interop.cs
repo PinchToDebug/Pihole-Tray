@@ -9,7 +9,8 @@ using System.Threading.Tasks;
 
 public static class Interop
 {
-
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern uint RegisterWindowMessage(string lpString);
     [DllImport("UXTheme.dll", SetLastError = true, EntryPoint = "#138")]
     public static extern bool ShouldSystemUseDarkMode();
     [SecurityCritical]
