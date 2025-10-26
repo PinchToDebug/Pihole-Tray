@@ -2189,5 +2189,9 @@ namespace Pihole_Tray
         }
 
 
+        private void trayIcon_RightClick(Wpf.Ui.Tray.Controls.NotifyIcon sender, RoutedEventArgs e)
+        {
+            UpdateWPFUITheme(ShouldSystemUseDarkMode());
+        }
     }
 }
