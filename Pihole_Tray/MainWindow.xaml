@@ -152,9 +152,18 @@
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="18"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Text="{Binding Time}"    FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Left" MinWidth="120"/>
-                                        <TextBlock Text="{Binding DomainName}" Foreground="{Binding ForegroundColor}" Name="DomainName" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Right" />
-                                        <Rectangle Height="1" Fill="#20FFFFFF" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="0,0,0,-1.5" />
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Grid.Background>
+                                            <SolidColorBrush Color="Transparent"/>
+                                        </Grid.Background>
+                                        <TextBlock Text="{Binding Time}" Grid.Column="0" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,10,0" />
+                                        <TextBlock Text="{Binding DomainName}" TextTrimming="CharacterEllipsis" Grid.Column="1" Foreground="{Binding ForegroundColor}" Name="DomainName" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Right" />
+                                        <Rectangle Height="1" Fill="#20FFFFFF" Grid.Column="0" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="0,0,0,-1.5" />
+                                        <Rectangle Height="1" Fill="#20FFFFFF" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="0,0,0,-1.5" />
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
