@@ -361,7 +361,7 @@ namespace Pihole_Tray
             AdsBlockedTB.Foreground = redBrush2;
             DnsQueryTB.Foreground = purpleBrush;
 
-
+            isDarkTheme = ShouldSystemUseDarkMode();
             Color color = isDarkTheme ? Colors.White : Colors.Black;
             Exit_Button.Foreground = new SolidColorBrush(color);
 
@@ -569,7 +569,7 @@ namespace Pihole_Tray
                     
                     token.ThrowIfCancellationRequested();
                     // Debug.WriteLine($"api_i: {instance.API_KEY}");
-                    CurrentNameTB.Text = $"{instance.Name}:";
+                        CurrentNameTB.Text = $"{instance.Name}:";
                     //if (this.Visibility != Visibility.Visible && !coldRun)
                     //{
                     //   await Task.Delay(100);
